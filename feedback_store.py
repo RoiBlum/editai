@@ -22,7 +22,7 @@ supabase = create_client(_url, _key)
 def save_feedback(user_id: str, clip_text: str, scores: dict, verdict: str, comment: str = None):
     supabase.table("feedback").insert({
         "user_id": user_id,
-        "clip_text": clip_text[:600],
+        "clip_text": clip_text,
         "scores": scores,
         "verdict": verdict,
         "comment": comment or "",

@@ -12,7 +12,6 @@ __pycache__/
 *.pyc
 .env
 feedback/
-*.txt
 *.mp4
 *.mp3
 public/

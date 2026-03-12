@@ -390,7 +390,7 @@
 </main>
 
 <script>
-const API = 'http://127.0.0.1:8000';
+const API = 'https://editai-production-71fc.up.railway.app';
 let transcriptContent = null;
 
 const DIM_LABELS = {
@@ -609,7 +609,7 @@ function renderClips(clips) {
 
     // Store clip data on card for feedback
     card.dataset.clipIndex = i;
-    card.dataset.clipText = (clip.text || '').substring(0, 600);
+    card.dataset.clipText = clip.text || '';
     card.dataset.scores = JSON.stringify(scores);
     container.appendChild(card);
   });
