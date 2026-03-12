@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+openai
+supabase
+python-dotenv
+faster-whisper
