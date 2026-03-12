@@ -1,0 +1,18 @@
+git --version
+```
+
+---
+
+### Step 2 — Create a .gitignore file
+
+In your project folder create a file called `.gitignore` — this prevents secrets and junk from being uploaded:
+```
+venv/
+__pycache__/
+*.pyc
+.env
+feedback/
+*.txt
+*.mp4
+*.mp3
+public/
