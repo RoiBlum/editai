@@ -3,5 +3,5 @@ uvicorn
 openai
 supabase
 python-dotenv
-faster-whispe
+faster-whisper
 python-multipart
