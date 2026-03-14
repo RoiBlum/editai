@@ -1,6 +1,21 @@
+import os
+
+# Add CUDA DLLs to PATH before anything else loads
+os.environ["PATH"] = (
+    "C:\\Users\\PC\\Desktop\\EditAI\\venv\\Lib\\site-packages\\nvidia\\cublas\\bin" +
+    os.pathsep +
+    "C:\\Users\\PC\\Desktop\\EditAI\\venv\\Lib\\site-packages\\nvidia\\cudnn\\bin" +
+    os.pathsep +
+    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin" +
+    os.pathsep +
+    os.environ["PATH"]
+)
+
+os.add_dll_directory("C:\\Users\\PC\\Desktop\\EditAI\\venv\\Lib\\site-packages\\nvidia\\cublas\\bin")
+os.add_dll_directory("C:\\Users\\PC\\Desktop\\EditAI\\venv\\Lib\\site-packages\\nvidia\\cudnn\\bin")
+
 from faster_whisper import WhisperModel
 import sys
-import os
 
 video_path = sys.argv[1]
 output_path = os.path.splitext(video_path)[0] + "_transcript.txt"
@@ -9,8 +24,8 @@ print("Loading model... (first run downloads ~3GB, just wait)")
 
 model = WhisperModel(
     "large-v3",
-    device="cpu",
-compute_type="int8"
+    device="cuda",
+    compute_type="float16"
 )
 
 print(f"Transcribing: {video_path}")
