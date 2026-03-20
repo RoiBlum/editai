@@ -28,7 +28,15 @@ def feedback_endpoint(request: FeedbackRequest):
         clip_text=request.clip_text,
         scores=request.scores,
         verdict=request.verdict,
-        comment=request.comment
+        comment=request.comment,
+        overall_score=request.overall_score,
+        start_score=request.start_score,
+        middle_score=request.middle_score,
+        end_score=request.end_score,
+        message_score=request.message_score,
+        marketing_purpose=request.marketing_purpose,
+        message_captured=request.message_captured,
+        missing_content=request.missing_content,
     )
     stats = get_feedback_stats(request.user_id)
     weights = get_learned_weights(request.user_id)

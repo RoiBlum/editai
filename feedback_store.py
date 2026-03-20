@@ -19,14 +19,37 @@ supabase = create_client(_url, _key)
 # Save feedback
 # ─────────────────────────────────────────────
 
-def save_feedback(user_id: str, clip_text: str, scores: dict, verdict: str, comment: str = None):
+def save_feedback(
+    user_id: str,
+    clip_text: str,
+    scores: dict,
+    verdict: str,
+    comment: str = None,
+    # new detailed feedback fields
+    overall_score: int = None,
+    start_score: int = None,
+    middle_score: int = None,
+    end_score: int = None,
+    message_score: int = None,
+    marketing_purpose: str = None,
+    message_captured: bool = None,
+    missing_content: str = None,
+):
     supabase.table("feedback").insert({
-        "user_id": user_id,
-        "clip_text": clip_text,
-        "scores": scores,
-        "verdict": verdict,
-        "comment": comment or "",
-        "created_at": datetime.now().isoformat()
+        "user_id":           user_id,
+        "clip_text":         clip_text[:600],
+        "scores":            scores,
+        "verdict":           verdict,
+        "comment":           comment or "",
+        "overall_score":     overall_score,
+        "start_score":       start_score,
+        "middle_score":      middle_score,
+        "end_score":         end_score,
+        "message_score":     message_score,
+        "marketing_purpose": marketing_purpose,
+        "message_captured":  message_captured,
+        "missing_content":   missing_content,
+        "created_at":        datetime.now().isoformat()
     }).execute()
 
 
@@ -100,7 +123,16 @@ def get_learned_weights(user_id: str) -> dict:
 
     for e in entries:
         scores = e.get("scores") or {}
-        target = approved_avgs if e["verdict"] == "good" else rejected_avgs
+
+        # Use overall_score (1-10) to determine approval if available,
+        # otherwise fall back to the old good/bad verdict
+        overall = e.get("overall_score")
+        if overall is not None:
+            is_good = int(overall) >= 6
+        else:
+            is_good = e["verdict"] == "good"
+
+        target = approved_avgs if is_good else rejected_avgs
         for k in dim_keys:
             if k in scores:
                 try:

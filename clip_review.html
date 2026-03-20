@@ -3,706 +3,396 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EditAI — בחירת קליפים</title>
+<title>EditAI</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0d0d0f;
-    --surface: #141416;
-    --surface2: #1c1c20;
-    --border: #2a2a30;
-    --accent: #e8ff47;
-    --accent2: #47ffd4;
-    --text: #f0f0f0;
-    --muted: #6b6b7a;
-    --danger: #ff4747;
-    --warn: #ff9f47;
-  }
+:root {
+  --bg:#0d0d0f; --surface:#141416; --surface2:#1c1c20;
+  --border:#2a2a30; --accent:#e8ff47; --accent2:#47ffd4;
+  --text:#f0f0f0; --muted:#6b6b7a; --danger:#ff4747; --warn:#ff9f47;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Heebo',sans-serif;min-height:100vh}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+/* ── Header ── */
+header{border-bottom:1px solid var(--border);padding:16px 40px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,13,15,.95);backdrop-filter:blur(12px);z-index:100}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;color:var(--accent)}
+.logo span{color:var(--muted);font-weight:400}
+.header-right{display:flex;align-items:center;gap:14px}
+.user-field{display:flex;align-items:center;gap:7px}
+.user-field label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.user-field input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;outline:none;width:110px;direction:ltr}
+.user-field input:focus{border-color:var(--accent)}
+.status-pill{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 12px;border-radius:100px;border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;gap:6px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.status-dot.active{background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s infinite}
+.status-dot.error{background:var(--danger)}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Heebo', sans-serif;
-    min-height: 100vh;
-  }
+/* ── Mode tabs ── */
+.mode-bar{border-bottom:1px solid var(--border);background:var(--surface);padding:0 40px;display:flex;gap:2px}
+.mode-tab{padding:13px 18px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.mode-tab:hover{color:var(--text)}
+.mode-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 
-  /* ── Header ── */
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 18px 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    background: rgba(13,13,15,0.93);
-    backdrop-filter: blur(12px);
-    z-index: 100;
-  }
+/* ── Layout ── */
+.mode-content{max-width:1200px;margin:0 auto;padding:36px 24px;display:none;grid-template-columns:340px 1fr;gap:28px;align-items:start}
+.mode-content.active{display:grid}
 
-  .logo {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--accent);
-  }
-  .logo span { color: var(--muted); font-weight: 400; }
+/* ── Panel (left col) ── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;position:sticky;top:72px}
+.panel-header{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-title{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.panel-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:4px;background:var(--surface2);color:var(--accent);border:1px solid rgba(232,255,71,.2)}
+.panel-body{padding:20px;display:flex;flex-direction:column;gap:14px}
+.divider{height:1px;background:var(--border)}
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
+/* ── Field ── */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.field input,.field textarea{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;outline:none;transition:border-color .2s;width:100%;direction:rtl}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-  .user-field {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .user-field label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .user-field input {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 10px;
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    outline: none;
-    width: 120px;
-    transition: border-color 0.2s;
-    direction: ltr;
-  }
-  .user-field input:focus { border-color: var(--accent); }
+/* ── Upload zone ── */
+.upload-zone{border:1.5px dashed var(--border);border-radius:10px;padding:24px 14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--surface2)}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:rgba(232,255,71,.04)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:22px;margin-bottom:7px;display:block}
+.upload-label{font-size:13px;color:var(--text);font-weight:600;display:block;margin-bottom:3px}
+.upload-sub{font-size:11px;color:var(--muted)}
+.upload-filename{margin-top:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);display:none;word-break:break-all}
 
-  .status-pill {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    padding: 4px 12px;
-    border-radius: 100px;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--muted);
-    transition: background 0.3s;
-  }
-  .status-dot.active {
-    background: var(--accent2);
-    box-shadow: 0 0 8px var(--accent2);
-    animation: pulse 2s infinite;
-  }
-  .status-dot.error {
-    background: var(--danger);
-    box-shadow: 0 0 8px var(--danger);
-  }
+/* ── Progress ── */
+.progress-wrap{display:none;flex-direction:column;gap:6px}
+.progress-wrap.visible{display:flex}
+.step{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);transition:all .3s}
+.step.active{border-color:var(--accent2);background:rgba(71,255,212,.06)}
+.step.done{border-color:rgba(232,255,71,.3);background:rgba(232,255,71,.04)}
+.step.error-step{border-color:rgba(255,71,71,.3);background:rgba(255,71,71,.06)}
+.step-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0;margin-top:1px}
+.step-content{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.step-text{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.step.active .step-text{color:var(--accent2)}
+.step.done .step-text{color:var(--accent)}
+.step.error-step .step-text{color:var(--danger)}
+.step-spinner{width:12px;height:12px;border:1.5px solid rgba(71,255,212,.3);border-top-color:var(--accent2);border-radius:50%;animation:spin .7s linear infinite;display:none;flex-shrink:0;margin-top:2px}
+.step.active .step-spinner{display:block}
+.step-bar-wrap{display:none;align-items:center;gap:6px}
+.step-bar-wrap.visible{display:flex}
+.step-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.step-bar-fill{height:100%;background:var(--accent2);border-radius:2px;transition:width .4s ease;width:0}
+.step-bar-pct{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent2);width:28px;text-align:right;flex-shrink:0}
+.live-transcript{display:none;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:7px 9px;max-height:75px;overflow-y:auto;direction:rtl;text-align:right}
+.live-transcript.visible{display:block}
+.live-line{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8080a0;line-height:1.6;border-bottom:1px solid rgba(255,255,255,.04);padding-bottom:2px;margin-bottom:2px}
+.live-line:last-child{color:var(--accent2);border-bottom:none}
+.live-line .ts{color:var(--muted);margin-left:5px;font-size:9px}
 
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  @keyframes spin  { to { transform: rotate(360deg); } }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+/* ── Prompt box ── */
+.prompt-box{border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.prompt-box-header{padding:9px 13px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.prompt-box-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
+.prompt-reset{font-size:11px;color:var(--muted);cursor:pointer;background:none;border:none;font-family:'IBM Plex Mono',monospace;text-decoration:underline;text-underline-offset:3px}
+.prompt-reset:hover{color:var(--accent)}
+.prompt-box textarea{background:transparent;border:none;padding:11px 13px;font-size:11px;direction:ltr;color:#b0b0c4;width:100%;resize:vertical;min-height:80px;outline:none;font-family:'IBM Plex Mono',monospace;line-height:1.7}
 
-  /* ── Layout ── */
-  main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px 24px;
-    display: grid;
-    grid-template-columns: 360px 1fr;
-    gap: 32px;
-    align-items: start;
-  }
+/* ── Weights ── */
+.weights-box{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:13px;display:none}
+.weights-box.visible{display:block}
+.weights-title{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:9px}
+.weight-row{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.weight-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);width:100px;flex-shrink:0}
+.weight-bar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.weight-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.weight-val{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);width:30px;text-align:left}
 
-  /* ── Left Panel ── */
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-    position: sticky;
-    top: 76px;
-  }
+/* ── Run button ── */
+.run-btn{width:100%;padding:12px;background:var(--accent);color:#0d0d0f;border:none;border-radius:9px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.run-btn:hover:not(:disabled){background:#f4ff80;transform:translateY(-1px);box-shadow:0 8px 24px rgba(232,255,71,.28)}
+.run-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-spinner{width:15px;height:15px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.run-btn.loading .btn-spinner{display:block}
+.run-btn.loading .btn-text{display:none}
 
-  .panel-header {
-    padding: 16px 22px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .panel-title {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-  }
-  .panel-tag {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: var(--surface2);
-    color: var(--accent);
-    border: 1px solid rgba(232,255,71,0.2);
-  }
+/* ── Results area (right col) ── */
+.results-area{display:flex;flex-direction:column;gap:16px}
+.results-header{display:flex;align-items:center;justify-content:space-between}
+.results-title{font-size:20px;font-weight:900;letter-spacing:-.5px}
+.results-count{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)}
+.feedback-banner{background:rgba(71,255,212,.07);border:1px solid rgba(71,255,212,.2);border-radius:9px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent2);display:none}
+.feedback-banner.visible{display:block}
+.error-state{background:rgba(255,71,71,.06);border:1px solid rgba(255,71,71,.2);border-radius:9px;padding:14px 18px;display:none;gap:9px;align-items:flex-start}
+.error-state.visible{display:flex}
+.error-text{font-size:12px;color:#ff8080;line-height:1.6;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap}
+.empty-state{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:60px 36px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.empty-icon{font-size:32px;opacity:.22}
+.empty-title{font-size:15px;font-weight:600;color:var(--muted)}
+.empty-sub{font-size:12px;color:var(--muted);opacity:.55;max-width:260px;line-height:1.6}
 
-  .panel-body {
-    padding: 22px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
+/* ── Transcript output ── */
+.transcript-output{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.transcript-output-header{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.transcript-output-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.transcript-meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.transcript-text{padding:20px;font-size:13px;line-height:1.9;color:#c8c8d8;direction:rtl;text-align:right;white-space:pre-wrap;max-height:580px;overflow-y:auto}
+.transcript-actions{padding:13px 20px;border-top:1px solid var(--border);background:var(--surface2)}
+.transcript-dl{padding:8px 18px;border-radius:7px;background:var(--accent);color:#000;border:none;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;transition:background .15s}
+.transcript-dl:hover{background:#f4ff80}
 
-  /* ── Upload zone ── */
-  .upload-zone {
-    border: 1.5px dashed var(--border);
-    border-radius: 10px;
-    padding: 28px 16px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    background: var(--surface2);
-  }
-  .upload-zone:hover, .upload-zone.drag-over {
-    border-color: var(--accent);
-    background: rgba(232,255,71,0.04);
-  }
-  .upload-zone input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
-  }
-  .upload-icon { font-size: 24px; margin-bottom: 8px; display: block; }
-  .upload-label { font-size: 13px; color: var(--text); font-weight: 600; display: block; margin-bottom: 3px; }
-  .upload-sub { font-size: 11px; color: var(--muted); }
-  .upload-filename {
-    margin-top: 8px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--accent2);
-    display: none;
-    word-break: break-all;
-  }
+/* ── Clip cards ── */
+.clip-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;animation:fadeUp .35s ease forwards;opacity:0;transition:border-color .2s}
+.clip-card:hover{border-color:rgba(255,255,255,.1)}
+.clip-card:nth-child(1){animation-delay:.05s}.clip-card:nth-child(2){animation-delay:.1s}
+.clip-card:nth-child(3){animation-delay:.15s}.clip-card:nth-child(4){animation-delay:.2s}
+.clip-card:nth-child(5){animation-delay:.25s}
+.clip-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.clip-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.clip-num{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);background:var(--surface2);padding:3px 9px;border-radius:100px;border:1px solid var(--border)}
+.clip-time{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)}
+.hook-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 9px;border-radius:100px;background:rgba(71,255,212,.1);color:var(--accent2);border:1px solid rgba(71,255,212,.2)}
+.final-score{display:flex;align-items:baseline;gap:3px}
+.final-score-num{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600}
+.final-score-denom{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.clip-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.dims-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.dim-row{display:flex;flex-direction:column;gap:3px}
+.dim-label-row{display:flex;justify-content:space-between}
+.dim-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)}
+.dim-val{font-family:'IBM Plex Mono',monospace;font-size:10px}
+.dim-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.dim-fill{height:100%;border-radius:2px;transition:width .7s ease}
+.clip-reason{font-size:12px;color:#9090a8;line-height:1.65;padding:9px 13px;background:var(--surface2);border-radius:7px;border-right:2px solid var(--accent);direction:ltr;text-align:left}
+.quote-box{padding:9px 13px;background:var(--surface2);border-radius:7px;border-right:2px solid var(--accent2);font-size:13px;color:var(--accent2);font-weight:600;direction:rtl;text-align:right}
+.quote-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.toggle-row{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;padding:3px 0}
+.toggle-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.toggle-arrow{font-size:9px;color:var(--muted);transition:transform .2s}
+.toggle-arrow.open{transform:rotate(180deg)}
+.clip-text-content{display:none;font-size:13px;line-height:1.8;color:#c0c0d0;background:var(--surface2);padding:13px;border-radius:7px;border:1px solid var(--border);white-space:pre-wrap;direction:rtl;text-align:right}
+.clip-text-content.open{display:block}
+.clip-footer{padding:11px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--surface2);flex-wrap:wrap}
+.feedback-label-sm{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-left:auto}
+.edit-clip-btn{padding:5px 13px;border-radius:6px;font-size:12px;font-family:'Heebo',sans-serif;font-weight:700;cursor:pointer;border:1px solid rgba(232,255,71,.35);background:rgba(232,255,71,.08);color:var(--accent);transition:all .15s}
+.edit-clip-btn:hover{background:rgba(232,255,71,.18);border-color:var(--accent)}
+.fb-btn{padding:5px 13px;border-radius:6px;font-size:12px;font-family:'Heebo',sans-serif;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;transition:all .15s}
+.fb-btn.good{color:var(--accent2);border-color:rgba(71,255,212,.3)}
+.fb-btn.good:hover,.fb-btn.good.active{background:rgba(71,255,212,.12);border-color:var(--accent2)}
+.fb-btn.bad{color:var(--danger);border-color:rgba(255,71,71,.3)}
+.fb-btn.bad:hover,.fb-btn.bad.active{background:rgba(255,71,71,.12);border-color:var(--danger)}
+.fb-comment-wrap{display:none;padding:0 18px 13px;background:var(--surface2)}
+.fb-comment-wrap.open{display:block}
+.fb-comment{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 11px;color:var(--text);font-family:'Heebo',sans-serif;font-size:12px;outline:none;resize:none;direction:rtl;margin-top:7px}
+.fb-comment:focus{border-color:var(--accent)}
+.fb-save-btn{margin-top:5px;padding:5px 15px;background:var(--accent);color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif}
+.fb-saved{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);margin-top:3px;display:none}
 
-  /* ── Progress steps ── */
-  .progress-wrap {
-    display: none;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .progress-wrap.visible { display: flex; }
+/* ── Editor modal ── */
+.editor-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center;padding:24px}
+.editor-overlay.visible{display:flex}
+.editor-modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:580px;overflow:hidden;display:flex;flex-direction:column}
+.editor-modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.editor-modal-title{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--accent)}
+.editor-close{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color .15s}
+.editor-close:hover{color:var(--text)}
+.editor-options{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.editor-option-row{display:flex;gap:20px;flex-wrap:wrap}
+.editor-toggle-label{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text);cursor:pointer;user-select:none}
+.editor-toggle-label input[type="checkbox"]{display:none}
+.editor-toggle-track{width:34px;height:19px;border-radius:10px;background:var(--border);position:relative;transition:background .2s;flex-shrink:0}
+.editor-toggle-track::after{content:'';position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s}
+.editor-toggle-label input:checked+.editor-toggle-track{background:var(--accent2)}
+.editor-toggle-label input:checked+.editor-toggle-track::after{transform:translateX(15px)}
+.editor-run-btn{padding:11px;background:var(--accent);color:#000;border:none;border-radius:9px;font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.editor-run-btn:hover:not(:disabled){background:#f4ff80}
+.editor-run-btn:disabled{opacity:.4;cursor:not-allowed}
+.editor-btn-spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.editor-run-btn.loading .editor-btn-spinner{display:block}
+.editor-run-btn.loading .editor-run-text{display:none}
+.editor-progress{padding:0 20px 18px;display:none;flex-direction:column;gap:9px}
+.editor-progress.visible{display:flex}
+.editor-progress-bar-wrap{display:flex;align-items:center;gap:9px}
+.editor-progress-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.editor-progress-fill{height:100%;background:var(--accent2);border-radius:3px;width:0;transition:width .4s ease}
+.editor-progress-pct{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);width:34px;text-align:right}
+.editor-current-step{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);direction:rtl;text-align:right}
+.editor-player-wrap{padding:0 20px 20px;display:none;flex-direction:column;gap:11px}
+.editor-player-wrap.visible{display:flex}
+.editor-video{width:100%;border-radius:9px;background:#000;max-height:400px;display:block}
+.editor-player-actions{display:flex;gap:9px}
+.editor-dl{padding:7px 16px;border-radius:7px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .15s;display:inline-block}
+.editor-dl:hover{background:var(--accent);color:#000;border-color:var(--accent)}
+.editor-error{margin:0 20px 14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--danger);display:none;white-space:pre-wrap;direction:rtl}
+.editor-error.visible{display:block}
 
-  .step {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    transition: all 0.3s;
-  }
-  .step.active  { border-color: var(--accent2); background: rgba(71,255,212,0.06); }
-  .step.done    { border-color: rgba(232,255,71,0.3); background: rgba(232,255,71,0.04); }
-  .step.error-step { border-color: rgba(255,71,71,0.3); background: rgba(255,71,71,0.06); }
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+select option{background:#1c1c20}
+@media(max-width:900px){
+  .mode-content{grid-template-columns:1fr}
+  .panel{position:static}
+  header{padding:14px 18px}
+  .mode-bar{padding:0 16px}
+  .mode-tab{padding:11px 12px;font-size:10px}
+  .mode-content{padding:20px 16px}
+}
 
-  .step-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
-  .step-text {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    flex: 1;
-  }
-  .step.active    .step-text { color: var(--accent2); }
-  .step.done      .step-text { color: var(--accent); }
-  .step.error-step .step-text { color: var(--danger); }
+/* ── Rich feedback form ── */
+.fb-form {
+  display: none;
+  padding: 14px 18px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  flex-direction: column;
+  gap: 14px;
+}
+.fb-form.open { display: flex; }
 
-  .step-spinner {
-    width: 12px;
-    height: 12px;
-    border: 1.5px solid rgba(71,255,212,0.3);
-    border-top-color: var(--accent2);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: none;
-    flex-shrink: 0;
-  }
-  .step.active .step-spinner { display: block; }
+.fb-section-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
 
-  /* ── Form fields ── */
-  .field { display: flex; flex-direction: column; gap: 6px; }
-  .field label {
-    font-size: 11px;
-    font-family: 'IBM Plex Mono', monospace;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-  }
-  .field input {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 9px 12px;
-    color: var(--text);
-    font-family: 'Heebo', sans-serif;
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.2s;
-    width: 100%;
-    direction: rtl;
-  }
-  .field input:focus { border-color: var(--accent); }
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fb-scores-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
 
-  /* ── Prompt box ── */
-  .prompt-box {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .prompt-box-header {
-    padding: 10px 14px;
-    background: var(--surface2);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .prompt-box-title {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .prompt-reset {
-    font-size: 11px;
-    color: var(--muted);
-    cursor: pointer;
-    background: none;
-    border: none;
-    font-family: 'IBM Plex Mono', monospace;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  .prompt-reset:hover { color: var(--accent); }
-  .prompt-box textarea {
-    background: transparent;
-    border: none;
-    padding: 12px 14px;
-    font-size: 11px;
-    direction: ltr;
-    color: #b0b0c4;
-    width: 100%;
-    resize: vertical;
-    min-height: 90px;
-    outline: none;
-    font-family: 'IBM Plex Mono', monospace;
-    line-height: 1.7;
-  }
+.fb-score-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 
-  /* ── Weights box ── */
-  .weights-box {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    display: none;
-  }
-  .weights-box.visible { display: block; }
-  .weights-title {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-  }
-  .weight-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  .weight-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    width: 110px;
-    flex-shrink: 0;
-  }
-  .weight-bar {
-    flex: 1;
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .weight-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.6s ease;
-  }
-  .weight-val {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--accent);
-    width: 32px;
-    text-align: left;
-  }
+.fb-score-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
 
-  /* ── Run button ── */
-  .run-btn {
-    width: 100%;
-    padding: 13px;
-    background: var(--accent);
-    color: #0d0d0f;
-    border: none;
-    border-radius: 9px;
-    font-family: 'Heebo', sans-serif;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-  .run-btn:hover:not(:disabled) {
-    background: #f4ff80;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 24px rgba(232,255,71,0.28);
-  }
-  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-  .btn-spinner {
-    width: 15px;
-    height: 15px;
-    border: 2px solid rgba(0,0,0,0.25);
-    border-top-color: #000;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: none;
-  }
-  .run-btn.loading .btn-spinner { display: block; }
-  .run-btn.loading .btn-text   { display: none; }
+.fb-score-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+}
+.fb-score-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.fb-score-display {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+}
 
-  .divider { height: 1px; background: var(--border); }
+.fb-purpose-btns {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.fb-purpose-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Heebo', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all .15s;
+}
+.fb-purpose-btn.active {
+  background: rgba(71,255,212,.12);
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
 
-  /* ── Results area ── */
-  .results-area { display: flex; flex-direction: column; gap: 18px; }
+.fb-captured-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fb-captured-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  flex: 1;
+}
+.fb-yes-no {
+  display: flex;
+  gap: 6px;
+}
+.fb-yn-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Heebo', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all .15s;
+}
+.fb-yn-btn.yes.active { background: rgba(71,255,212,.12); border-color: var(--accent2); color: var(--accent2); }
+.fb-yn-btn.no.active  { background: rgba(255,71,71,.12);  border-color: var(--danger);  color: var(--danger); }
 
-  .results-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .results-title { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
-  .results-count {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-  }
+.fb-textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 11px;
+  color: var(--text);
+  font-family: 'Heebo', sans-serif;
+  font-size: 12px;
+  outline: none;
+  resize: vertical;
+  direction: rtl;
+  line-height: 1.6;
+}
+.fb-textarea:focus { border-color: var(--accent); }
 
-  .feedback-banner {
-    background: rgba(71,255,212,0.07);
-    border: 1px solid rgba(71,255,212,0.2);
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--accent2);
-    display: none;
-  }
-  .feedback-banner.visible { display: block; }
+.fb-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fb-submit-btn {
+  padding: 7px 18px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Heebo', sans-serif;
+  transition: background .15s;
+}
+.fb-submit-btn:hover { background: #f4ff80; }
+.fb-saved-msg {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--accent2);
+  display: none;
+}
 
-  .error-state {
-    background: rgba(255,71,71,0.06);
-    border: 1px solid rgba(255,71,71,0.2);
-    border-radius: 10px;
-    padding: 16px 20px;
-    display: none;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  .error-state.visible { display: flex; }
-  .error-text {
-    font-size: 12px;
-    color: #ff8080;
-    line-height: 1.6;
-    font-family: 'IBM Plex Mono', monospace;
-    white-space: pre-wrap;
-  }
-
-  .empty-state {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 72px 40px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-  .empty-icon { font-size: 36px; opacity: 0.25; }
-  .empty-title { font-size: 15px; font-weight: 600; color: var(--muted); }
-  .empty-sub {
-    font-size: 12px;
-    color: var(--muted);
-    opacity: 0.55;
-    max-width: 280px;
-    line-height: 1.6;
-  }
-
-  /* ── Clip cards ── */
-  .clip-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    animation: fadeUp 0.35s ease forwards;
-    opacity: 0;
-    transition: border-color 0.2s;
-  }
-  .clip-card:hover { border-color: rgba(255,255,255,0.12); }
-  .clip-card:nth-child(1) { animation-delay: 0.05s; }
-  .clip-card:nth-child(2) { animation-delay: 0.10s; }
-  .clip-card:nth-child(3) { animation-delay: 0.15s; }
-  .clip-card:nth-child(4) { animation-delay: 0.20s; }
-  .clip-card:nth-child(5) { animation-delay: 0.25s; }
-
-  .clip-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .clip-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .clip-num {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    background: var(--surface2);
-    padding: 3px 10px;
-    border-radius: 100px;
-    border: 1px solid var(--border);
-  }
-  .hook-badge {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    padding: 3px 10px;
-    border-radius: 100px;
-    background: rgba(71,255,212,0.1);
-    color: var(--accent2);
-    border: 1px solid rgba(71,255,212,0.2);
-  }
-
-  .final-score { display: flex; align-items: baseline; gap: 3px; }
-  .final-score-num {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 20px;
-    font-weight: 600;
-  }
-  .final-score-denom {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-  }
-
-  .clip-body {
-    padding: 18px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  /* 6 dimension bars */
-  .dims-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .dim-row { display: flex; flex-direction: column; gap: 4px; }
-  .dim-label-row { display: flex; justify-content: space-between; }
-  .dim-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-  }
-  .dim-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
-  .dim-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .dim-fill { height: 100%; border-radius: 2px; transition: width 0.7s ease; }
-
-  .clip-reason {
-    font-size: 12px;
-    color: #9090a8;
-    line-height: 1.65;
-    padding: 10px 14px;
-    background: var(--surface2);
-    border-radius: 7px;
-    border-right: 2px solid var(--accent);
-    direction: ltr;
-    text-align: left;
-  }
-
-  .quote-box {
-    padding: 10px 14px;
-    background: var(--surface2);
-    border-radius: 7px;
-    border-right: 2px solid var(--accent2);
-    font-size: 13px;
-    color: var(--accent2);
-    font-weight: 600;
-    direction: rtl;
-    text-align: right;
-  }
-  .quote-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-  }
-
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    user-select: none;
-    padding: 4px 0;
-  }
-  .toggle-label {
-    font-size: 11px;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .toggle-arrow { font-size: 9px; color: var(--muted); transition: transform 0.2s; }
-  .toggle-arrow.open { transform: rotate(180deg); }
-
-  .clip-text-content {
-    display: none;
-    font-size: 13px;
-    line-height: 1.8;
-    color: #c0c0d0;
-    background: var(--surface2);
-    padding: 14px;
-    border-radius: 7px;
-    border: 1px solid var(--border);
-    white-space: pre-wrap;
-    direction: rtl;
-    text-align: right;
-  }
-  .clip-text-content.open { display: block; }
-
-  /* ── Clip footer / feedback ── */
-  .clip-footer {
-    padding: 12px 20px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--surface2);
-  }
-  .feedback-label-sm {
-    font-size: 11px;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--muted);
-    margin-left: auto;
-  }
-  .fb-btn {
-    padding: 5px 14px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-family: 'Heebo', sans-serif;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: transparent;
-    transition: all 0.15s;
-  }
-  .fb-btn.good { color: var(--accent2); border-color: rgba(71,255,212,0.3); }
-  .fb-btn.good:hover, .fb-btn.good.active { background: rgba(71,255,212,0.12); border-color: var(--accent2); }
-  .fb-btn.bad  { color: var(--danger);  border-color: rgba(255,71,71,0.3); }
-  .fb-btn.bad:hover, .fb-btn.bad.active  { background: rgba(255,71,71,0.12);  border-color: var(--danger); }
-
-  .fb-comment-wrap {
-    display: none;
-    padding: 0 20px 14px;
-    background: var(--surface2);
-  }
-  .fb-comment-wrap.open { display: block; }
-  .fb-comment {
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 8px 12px;
-    color: var(--text);
-    font-family: 'Heebo', sans-serif;
-    font-size: 12px;
-    outline: none;
-    resize: none;
-    direction: rtl;
-    margin-top: 8px;
-  }
-  .fb-comment:focus { border-color: var(--accent); }
-  .fb-save-btn {
-    margin-top: 6px;
-    padding: 5px 16px;
-    background: var(--accent);
-    color: #000;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: 'Heebo', sans-serif;
-  }
-  .fb-saved {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--accent2);
-    margin-top: 4px;
-    display: none;
-  }
-
-  /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  /* ── Responsive ── */
-  @media (max-width: 900px) {
-    main { grid-template-columns: 1fr; }
-    .panel { position: static; }
-    header { padding: 14px 18px; }
-    main { padding: 24px 16px; }
-  }
 </style>
 </head>
 <body>
@@ -712,7 +402,7 @@
   <div class="header-right">
     <div class="user-field">
       <label>משתמש</label>
-      <input type="text" id="userId" value="default" placeholder="שם משתמש">
+      <input type="text" id="userId" value="default" placeholder="user id">
     </div>
     <div class="status-pill">
       <div class="status-dot" id="statusDot"></div>
@@ -721,511 +411,843 @@
   </div>
 </header>
 
-<main>
+<div class="mode-bar">
+  <button class="mode-tab active" onclick="switchMode('transcribe')">
+    <span>🎙</span> תמלול בלבד
+  </button>
+  <button class="mode-tab" onclick="switchMode('clips')">
+    <span>🧠</span> קליפים מטקסט
+  </button>
+  <button class="mode-tab" onclick="switchMode('full')">
+    <span>🎬</span> פייפליין מלא
+  </button>
+</div>
 
-  <!-- ── LEFT PANEL ── -->
+<!-- ══ MODE 1: TRANSCRIBE ONLY ══ -->
+<div id="mode-transcribe" class="mode-content active">
   <div class="panel">
     <div class="panel-header">
-      <span class="panel-title">הגדרות</span>
-      <span class="panel-tag">6-dim scoring</span>
+      <span class="panel-title">תמלול וידאו</span>
+      <span class="panel-tag">Whisper</span>
     </div>
     <div class="panel-body">
-
-      <!-- Video upload -->
       <div class="field">
         <label>וידאו / אודיו</label>
-        <div class="upload-zone" id="uploadZone">
-          <input type="file" id="fileInput" accept=".mp4,.mov,.m4a,.mp3,.wav,.webm">
+        <div class="upload-zone" id="m1-zone">
+          <input type="file" id="m1-file" accept=".mp4,.mov,.m4a,.mp3,.wav,.webm">
+          <span class="upload-icon">🎙</span>
+          <span class="upload-label">גרור וידאו לכאן</span>
+          <span class="upload-sub">.mp4 .mov .mp3 .wav</span>
+          <span class="upload-filename" id="m1-fname"></span>
+        </div>
+      </div>
+      <div class="progress-wrap" id="m1-prog">
+        <div class="step" id="m1-step">
+          <span class="step-icon">🎙</span>
+          <div class="step-content">
+            <span class="step-text" id="m1-stepText">מתמלל...</span>
+            <div class="step-bar-wrap" id="m1-barWrap">
+              <div class="step-bar"><div class="step-bar-fill" id="m1-barFill"></div></div>
+              <span class="step-bar-pct" id="m1-pct">0%</span>
+            </div>
+            <div class="live-transcript" id="m1-live"></div>
+          </div>
+          <div class="step-spinner"></div>
+        </div>
+      </div>
+      <button class="run-btn" id="m1-btn" onclick="runTranscribeOnly()">
+        <div class="btn-spinner"></div>
+        <span class="btn-text">🎙 תמלל וידאו</span>
+      </button>
+    </div>
+  </div>
+  <div class="results-area">
+    <div class="results-header">
+      <h2 class="results-title">תמלול</h2>
+      <span class="results-count" id="m1-count"></span>
+    </div>
+    <div class="error-state" id="m1-err"><span>⚠</span><span class="error-text" id="m1-errText"></span></div>
+    <div id="m1-output">
+      <div class="empty-state">
+        <span class="empty-icon">🎙</span>
+        <span class="empty-title">העלה וידאו לתמלול</span>
+        <span class="empty-sub">הטקסט יוצג כאן ויהיה ניתן להורדה</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODE 2: CLIPS FROM TEXT ══ -->
+<div id="mode-clips" class="mode-content">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">בחירת קליפים</span>
+      <span class="panel-tag">6-dim</span>
+    </div>
+    <div class="panel-body">
+      <div class="field">
+        <label>קובץ תמלול (.txt)</label>
+        <div class="upload-zone" id="m2-zone">
+          <input type="file" id="m2-file" accept=".txt">
+          <span class="upload-icon">📄</span>
+          <span class="upload-label">גרור קובץ .txt לכאן</span>
+          <span class="upload-sub">קובץ תמלול מוכן</span>
+          <span class="upload-filename" id="m2-fname"></span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="field"><label>טון</label><input type="text" id="m2-tone" value="educational"></div>
+      <div class="field"><label>קהל יעד</label><input type="text" id="m2-audience" value="women, beauty"></div>
+      <div class="field"><label>פלטפורמה</label><input type="text" id="m2-platform" value="tiktok, instagram"></div>
+      <div class="field-row">
+        <div class="field"><label>מינ׳ שניות</label><input type="number" id="m2-min" value="30"></div>
+        <div class="field"><label>מקס׳ שניות</label><input type="number" id="m2-max" value="60"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="weights-box" id="m2-wbox"><div class="weights-title">משקלים נלמדים</div><div id="m2-wrows"></div></div>
+      <div class="field">
+        <label>פרומפט מותאם (אופציונלי)</label>
+        <div class="prompt-box">
+          <div class="prompt-box-header"><span class="prompt-box-title">override</span><button class="prompt-reset" onclick="document.getElementById('m2-prompt').value=''">נקה</button></div>
+          <textarea id="m2-prompt" placeholder="השאר ריק לברירת מחדל..."></textarea>
+        </div>
+      </div>
+      <button class="run-btn" id="m2-btn" onclick="runClipsOnly()">
+        <div class="btn-spinner"></div>
+        <span class="btn-text">🧠 בחר קליפים</span>
+      </button>
+    </div>
+  </div>
+  <div class="results-area">
+    <div class="results-header">
+      <h2 class="results-title">קליפים נבחרים</h2>
+      <span class="results-count" id="m2-count"></span>
+    </div>
+    <div class="feedback-banner" id="m2-banner"></div>
+    <div class="error-state" id="m2-err"><span>⚠</span><span class="error-text" id="m2-errText"></span></div>
+    <div id="m2-results">
+      <div class="empty-state">
+        <span class="empty-icon">🧠</span>
+        <span class="empty-title">העלה קובץ תמלול</span>
+        <span class="empty-sub">AI יבחר את הקטעים הטובים לקליפים שיווקיים</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODE 3: FULL PIPELINE ══ -->
+<div id="mode-full" class="mode-content">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">פייפליין מלא</span>
+      <span class="panel-tag">6-dim</span>
+    </div>
+    <div class="panel-body">
+      <div class="field">
+        <label>וידאו / אודיו</label>
+        <div class="upload-zone" id="m3-zone">
+          <input type="file" id="m3-file" accept=".mp4,.mov,.m4a,.mp3,.wav,.webm">
           <span class="upload-icon">🎬</span>
           <span class="upload-label">גרור וידאו לכאן</span>
-          <span class="upload-sub">.mp4 .mov .mp3 .m4a .wav</span>
-          <span class="upload-filename" id="uploadFilename"></span>
+          <span class="upload-sub">.mp4 .mov .mp3 .wav</span>
+          <span class="upload-filename" id="m3-fname"></span>
         </div>
       </div>
-
-      <!-- Progress steps (shown during processing) -->
-      <div class="progress-wrap" id="progressWrap">
-        <div class="step" id="step1">
+      <div class="progress-wrap" id="m3-prog">
+        <div class="step" id="m3-step1">
           <span class="step-icon">🎙</span>
-          <span class="step-text">מתמלל עם Whisper...</span>
-          <div class="step-spinner"></div>
-        </div>
-        <div class="step" id="step2">
-          <span class="step-icon">🧠</span>
-          <span class="step-text">בוחר קליפים עם AI...</span>
-          <div class="step-spinner"></div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Strategy fields -->
-      <div class="field">
-        <label>טון</label>
-        <input type="text" id="tone" value="educational" placeholder="לדוגמה: מקצועי, קליל, השראתי">
-      </div>
-
-      <div class="field">
-        <label>קהל יעד</label>
-        <input type="text" id="audience" value="women, beauty" placeholder="לדוגמה: נשים, יזמים, ספורטאים">
-      </div>
-
-      <div class="field">
-        <label>פלטפורמה</label>
-        <input type="text" id="platform" value="tiktok, instagram" placeholder="tiktok, instagram, youtube...">
-      </div>
-
-      <div class="field-row">
-        <div class="field">
-          <label>מינ׳ שניות</label>
-          <input type="number" id="minSec" value="30" min="10">
-        </div>
-        <div class="field">
-          <label>מקס׳ שניות</label>
-          <input type="number" id="maxSec" value="200" max="600">
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Learned weights display -->
-      <div class="weights-box" id="weightsBox">
-        <div class="weights-title">משקלים נלמדים ממשוב</div>
-        <div id="weightRows"></div>
-      </div>
-
-      <!-- Custom prompt override -->
-      <div class="field">
-        <label>פרומפט מותאם אישית (אופציונלי)</label>
-        <div class="prompt-box">
-          <div class="prompt-box-header">
-            <span class="prompt-box-title">override system prompt</span>
-            <button class="prompt-reset" onclick="document.getElementById('customPrompt').value=''">נקה</button>
+          <div class="step-content">
+            <span class="step-text" id="m3-step1Text">מתמלל...</span>
+            <div class="step-bar-wrap" id="m3-barWrap">
+              <div class="step-bar"><div class="step-bar-fill" id="m3-barFill"></div></div>
+              <span class="step-bar-pct" id="m3-pct">0%</span>
+            </div>
+            <div class="live-transcript" id="m3-live"></div>
           </div>
-          <textarea id="customPrompt" placeholder="השאר ריק לשימוש בפרומפט ברירת המחדל עם 6 מימדים..."></textarea>
+          <div class="step-spinner"></div>
+        </div>
+        <div class="step" id="m3-step2">
+          <span class="step-icon">🧠</span>
+          <div class="step-content"><span class="step-text" id="m3-step2Text">בוחר קליפים...</span></div>
+          <div class="step-spinner"></div>
         </div>
       </div>
-
-      <button class="run-btn" id="runBtn" onclick="runFull()">
+      <div class="divider"></div>
+      <div class="field"><label>טון</label><input type="text" id="m3-tone" value="educational"></div>
+      <div class="field"><label>קהל יעד</label><input type="text" id="m3-audience" value="women, beauty"></div>
+      <div class="field"><label>פלטפורמה</label><input type="text" id="m3-platform" value="tiktok, instagram"></div>
+      <div class="field-row">
+        <div class="field"><label>מינ׳ שניות</label><input type="number" id="m3-min" value="30"></div>
+        <div class="field"><label>מקס׳ שניות</label><input type="number" id="m3-max" value="60"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="weights-box" id="m3-wbox"><div class="weights-title">משקלים נלמדים</div><div id="m3-wrows"></div></div>
+      <div class="field">
+        <label>פרומפט מותאם (אופציונלי)</label>
+        <div class="prompt-box">
+          <div class="prompt-box-header"><span class="prompt-box-title">override</span><button class="prompt-reset" onclick="document.getElementById('m3-prompt').value=''">נקה</button></div>
+          <textarea id="m3-prompt" placeholder="השאר ריק לברירת מחדל..."></textarea>
+        </div>
+      </div>
+      <button class="run-btn" id="m3-btn" onclick="runFull()">
         <div class="btn-spinner"></div>
         <span class="btn-text">▶ העלה וידאו והפעל</span>
       </button>
-
     </div>
   </div>
-
-  <!-- ── RIGHT: Results ── -->
   <div class="results-area">
-
     <div class="results-header">
       <h2 class="results-title">קליפים נבחרים</h2>
-      <span class="results-count" id="resultsCount"></span>
+      <span class="results-count" id="m3-count"></span>
     </div>
-
-    <div class="feedback-banner" id="feedbackBanner"></div>
-
-    <div class="error-state" id="errorState">
-      <span>⚠</span>
-      <span class="error-text" id="errorText"></span>
-    </div>
-
-    <div id="resultsContainer">
+    <div class="feedback-banner" id="m3-banner"></div>
+    <div class="error-state" id="m3-err"><span>⚠</span><span class="error-text" id="m3-errText"></span></div>
+    <div id="m3-results">
       <div class="empty-state">
         <span class="empty-icon">🎬</span>
         <span class="empty-title">אין תוצאות עדיין</span>
-        <span class="empty-sub">העלה וידאו, הגדר את הפרופיל ולחץ הפעל — Whisper יתמלל ו-AI יבחר קליפים אוטומטית</span>
+        <span class="empty-sub">העלה וידאו ולחץ הפעל — Whisper יתמלל ו-AI יבחר קליפים</span>
       </div>
     </div>
-
   </div>
-</main>
+</div>
+
+<!-- ══ Video Editor Modal ══ -->
+<div class="editor-overlay" id="editorOverlay" onclick="if(event.target===this)closeEditor()">
+  <div class="editor-modal">
+    <div class="editor-modal-header">
+      <span class="editor-modal-title">✂️ עריכת קליפ</span>
+      <button class="editor-close" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="editor-options" id="editorOptions">
+      <div class="editor-option-row">
+        <label class="editor-toggle-label">
+          <input type="checkbox" id="optPortrait" checked>
+          <span class="editor-toggle-track"></span>
+          חיתוך 9:16
+        </label>
+        <label class="editor-toggle-label">
+          <input type="checkbox" id="optSubtitles" checked>
+          <span class="editor-toggle-track"></span>
+          כתוביות עבריות
+        </label>
+      </div>
+      <button class="editor-run-btn" id="editorRunBtn" onclick="startEdit()">
+        <div class="editor-btn-spinner"></div>
+        <span class="editor-run-text">▶ צור קליפ</span>
+      </button>
+    </div>
+    <div class="editor-progress" id="editorProgress">
+      <div class="editor-progress-bar-wrap">
+        <div class="editor-progress-bar"><div class="editor-progress-fill" id="editorFill"></div></div>
+        <span class="editor-progress-pct" id="editorPct">0%</span>
+      </div>
+      <div class="editor-current-step" id="editorStep">מתחיל...</div>
+    </div>
+    <div class="editor-player-wrap" id="editorPlayer">
+      <video id="editorVideo" controls playsinline class="editor-video"></video>
+      <div class="editor-player-actions">
+        <a class="editor-dl" id="editorDl" download="clip.mp4">⬇ הורד קליפ</a>
+      </div>
+    </div>
+    <div class="editor-error" id="editorError"></div>
+  </div>
+</div>
 
 <script>
-// ── Environment auto-detection ────────────────────────────────────────────────
-const IS_LOCAL = location.hostname === '127.0.0.1'
-              || location.hostname === 'localhost'
-              || location.protocol === 'file:';
+// ── Config ────────────────────────────────────────────────────────────────────
+const API            = 'https://editai-production-71fc.up.railway.app';
+const TRANSCRIBE_API = 'http://127.0.0.1:8001';
+const EDITOR_API     = 'http://127.0.0.1:8002';
 
-const API = IS_LOCAL
-    ? 'http://127.0.0.1:8000'
-    : 'https://editai-production-71fc.up.railway.app';
+const DIM_LABELS = {hook_strength:'Hook',completeness:'Complete',emotional_peak:'Emotion',value_density:'Value',profile_match:'Profile',quotability:'Quotable'};
+const DIM_COLORS = {hook_strength:'#e8ff47',completeness:'#47ffd4',emotional_peak:'#ff9f47',value_density:'#a78bfa',profile_match:'#60a5fa',quotability:'#f472b6'};
 
-const TRANSCRIBE_API = 'http://127.0.0.1:8001'; // always local — Whisper runs on this machine
+// Global state
+let currentVideoId  = null;
+let currentSegments = [];
 
-console.log(`Mode: ${IS_LOCAL ? 'DEV' : 'PROD'} | API: ${API} | Transcribe: ${TRANSCRIBE_API}`);
-
-// ── Dimension config ──────────────────────────────────────────────────────────
-const DIM_LABELS = {
-  hook_strength:  'Hook',
-  completeness:   'Complete',
-  emotional_peak: 'Emotion',
-  value_density:  'Value',
-  profile_match:  'Profile',
-  quotability:    'Quotable'
-};
-const DIM_COLORS = {
-  hook_strength:  '#e8ff47',
-  completeness:   '#47ffd4',
-  emotional_peak: '#ff9f47',
-  value_density:  '#a78bfa',
-  profile_match:  '#60a5fa',
-  quotability:    '#f472b6'
-};
-
-let selectedFile = null;
-
-// ── File selection ────────────────────────────────────────────────────────────
-const fileInput  = document.getElementById('fileInput');
-const uploadZone = document.getElementById('uploadZone');
-
-fileInput.addEventListener('change', e => selectFile(e.target.files[0]));
-
-uploadZone.addEventListener('dragover', e => {
-  e.preventDefault();
-  uploadZone.classList.add('drag-over');
-});
-uploadZone.addEventListener('dragleave', () => {
-  uploadZone.classList.remove('drag-over');
-});
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag-over');
-  selectFile(e.dataTransfer.files[0]);
-});
-
-function selectFile(file) {
-  if (!file) return;
-  selectedFile = file;
-  const el = document.getElementById('uploadFilename');
-  const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-  el.textContent = `✓ ${file.name} (${sizeMB} MB)`;
-  el.style.display = 'block';
-  hideError();
+// ── Mode switching ────────────────────────────────────────────────────────────
+function switchMode(mode) {
+  document.querySelectorAll('.mode-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`mode-${mode}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (mode !== 'transcribe') loadWeights(mode);
 }
 
-// ── Status helpers ────────────────────────────────────────────────────────────
+// ── Status ────────────────────────────────────────────────────────────────────
 function setStatus(text, state) {
   document.getElementById('statusText').textContent = text;
-  const dot = document.getElementById('statusDot');
-  dot.className = 'status-dot'
-    + (state === 'active' ? ' active' : '')
-    + (state === 'error'  ? ' error'  : '');
+  const d = document.getElementById('statusDot');
+  d.className = 'status-dot' + (state==='active'?' active':state==='error'?' error':'');
 }
 
-function showError(msg) {
-  document.getElementById('errorText').textContent = msg;
-  document.getElementById('errorState').classList.add('visible');
-}
-function hideError() {
-  document.getElementById('errorState').classList.remove('visible');
-}
-function showBanner(msg) {
-  const el = document.getElementById('feedbackBanner');
-  el.textContent = msg;
-  el.classList.add('visible');
-  setTimeout(() => el.classList.remove('visible'), 4000);
-}
+// ── Upload zone setup helper ──────────────────────────────────────────────────
+function setupZone(zoneId, inputId, fnameId, onFile) {
+  const zone  = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const fname = document.getElementById(fnameId);
 
-// ── Progress step helpers ─────────────────────────────────────────────────────
-function setStep(id, state) {
-  const el = document.getElementById(id);
-  el.className = 'step'
-    + (state === 'active'    ? ' active'     : '')
-    + (state === 'done'      ? ' done'       : '')
-    + (state === 'error'     ? ' error-step' : '');
-}
-function showProgress() {
-  document.getElementById('progressWrap').classList.add('visible');
-  setStep('step1', 'idle');
-  setStep('step2', 'idle');
-}
-function hideProgress() {
-  document.getElementById('progressWrap').classList.remove('visible');
-}
-
-// ── Main flow ─────────────────────────────────────────────────────────────────
-async function runFull() {
-  if (!selectedFile) {
-    showError('לא נבחר קובץ וידאו. גרור קובץ או לחץ לבחירה.');
-    return;
+  function handleFile(file) {
+    if (!file) return;
+    fname.textContent = `✓ ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`;
+    fname.style.display = 'block';
+    onFile(file);
   }
-
-  hideError();
-  const btn = document.getElementById('runBtn');
-  btn.disabled = true;
-  btn.classList.add('loading');
-  showProgress();
-
-  try {
-
-    // ── Step 1: Transcribe locally with Whisper ──────────────────────────────
-    setStep('step1', 'active');
-    setStatus('מתמלל...', 'active');
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
-    let transcriptRes;
-    try {
-      transcriptRes = await fetch(`${TRANSCRIBE_API}/transcribe`, {
-        method: 'POST',
-        body: formData
-      });
-    } catch (e) {
-      throw new Error(
-        'לא ניתן להתחבר לשרת התמלול המקומי.\n\n' +
-        'וודא שהשרת רץ:\n' +
-        '  Mac:     cd ~/editai && ./start.sh\n' +
-        '  Windows: uvicorn transcribe_api:app --port 8001\n\n' +
-        'השרת חייב לרוץ על פורט 8001.'
-      );
-    }
-
-    if (!transcriptRes.ok) {
-      const errText = await transcriptRes.text();
-      throw new Error(`שגיאת תמלול ${transcriptRes.status}:\n${errText}`);
-    }
-
-    const td = await transcriptRes.json();
-    setStep('step1', 'done');
-
-    document.getElementById('uploadFilename').textContent =
-      `✓ ${selectedFile.name} | ${td.segments} קטעים | ${Math.round(td.confidence * 100)}% ביטחון`;
-
-    // ── Step 2: Select clips via Railway ─────────────────────────────────────
-    setStep('step2', 'active');
-    setStatus('בוחר קליפים...', 'active');
-
-    const payload = {
-      transcript: td.transcript,
-      strategy: {
-        tone:             document.getElementById('tone').value,
-        audience:         document.getElementById('audience').value,
-        platform:         document.getElementById('platform').value,
-        min_clip_seconds: parseInt(document.getElementById('minSec').value),
-        max_clip_seconds: parseInt(document.getElementById('maxSec').value),
-        require_hook:     true,
-        custom_prompt:    document.getElementById('customPrompt').value || null,
-        user_id:          document.getElementById('userId').value || 'default'
-      }
-    };
-
-    const clipsRes = await fetch(`${API}/select-clips`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!clipsRes.ok) throw new Error(`שגיאת בחירת קליפים: ${clipsRes.status}`);
-
-    const clipsData = await clipsRes.json();
-    setStep('step2', 'done');
-    setStatus('הושלם ✓', false);
-
-    renderClips(clipsData.clips);
-    hideProgress();
-    await loadWeights();
-
-  } catch (err) {
-    setStatus('שגיאה', 'error');
-    showError(err.message);
-    if (document.getElementById('step1').classList.contains('active')) setStep('step1', 'error');
-    if (document.getElementById('step2').classList.contains('active')) setStep('step2', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.classList.remove('loading');
-  }
+  input.addEventListener('change', e => handleFile(e.target.files[0]));
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
 }
 
-// ── Load and display learned weights ─────────────────────────────────────────
-async function loadWeights() {
+// ── Generic SSE transcription streamer ───────────────────────────────────────
+function streamTranscribe(file, els) {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('file', file);
+    fetch(`${TRANSCRIBE_API}/transcribe`, { method: 'POST', body: form })
+      .then(res => {
+        if (!res.ok) { res.text().then(t => reject(new Error(`שגיאת תמלול ${res.status}:\n${t}`))); return; }
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        els.barWrap.classList.add('visible');
+        els.live.classList.add('visible');
+        function next({ done, value }) {
+          if (done) return;
+          buf += dec.decode(value, { stream: true });
+          const parts = buf.split('\n\n'); buf = parts.pop();
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const em = part.match(/^event: (.+)$/m);
+            const dm = part.match(/^data: (.+)$/m);
+            if (!dm) continue;
+            let p; try { p = JSON.parse(dm[1]); } catch { continue; }
+            const ev = em ? em[1] : 'status';
+            if (ev === 'segment' || ev === 'status') {
+              const pct = p.progress || 0;
+              els.barFill.style.width = `${pct}%`;
+              els.pct.textContent = `${pct}%`;
+              els.stepText.textContent = p.message || 'מתמלל...';
+              if (ev === 'segment') {
+                const line = document.createElement('div');
+                line.className = 'live-line';
+                const ts = Math.floor(p.start/60)+':'+String(Math.floor(p.start%60)).padStart(2,'0');
+                line.innerHTML = `<span class="ts">${ts}</span>${p.text}`;
+                els.live.appendChild(line);
+                while (els.live.children.length > 4) els.live.removeChild(els.live.firstChild);
+                els.live.scrollTop = els.live.scrollHeight;
+              }
+            } else if (ev === 'done') {
+              els.barFill.style.width = '100%'; els.pct.textContent = '100%';
+              resolve(p); return;
+            } else if (ev === 'error') { reject(new Error(p.message)); return; }
+          }
+          reader.read().then(next).catch(reject);
+        }
+        reader.read().then(next).catch(reject);
+      })
+      .catch(() => reject(new Error('לא ניתן להתחבר לשרת התמלול.\nוודא שהשרת רץ על פורט 8001.')));
+  });
+}
+
+// ── Weights loader ────────────────────────────────────────────────────────────
+async function loadWeights(mode) {
+  const ns = mode === 'clips' ? 'm2' : 'm3';
   const userId = document.getElementById('userId').value || 'default';
   try {
     const res = await fetch(`${API}/feedback/stats/${userId}`);
     if (!res.ok) return;
     const data = await res.json();
-    renderWeights(data.weights, data.stats);
+    renderWeights(ns, data.weights, data.stats);
   } catch {}
 }
 
-document.getElementById('userId').addEventListener('blur', loadWeights);
-
-function renderWeights(weights, stats) {
-  const box  = document.getElementById('weightsBox');
-  const rows = document.getElementById('weightRows');
-
-  if (!weights || !stats || stats.total < 1) {
-    box.classList.remove('visible');
-    return;
-  }
-
-  box.classList.add('visible');
-  rows.innerHTML = '';
-
+function renderWeights(ns, weights, stats) {
+  const box  = document.getElementById(`${ns}-wbox`);
+  const rows = document.getElementById(`${ns}-wrows`);
+  if (!box || !weights || !stats || stats.total < 1) { box && box.classList.remove('visible'); return; }
+  box.classList.add('visible'); rows.innerHTML = '';
   const info = document.createElement('div');
-  info.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:10px;';
-  info.textContent = `${stats.total} פידבקים | ${stats.good} ✅  ${stats.bad} ❌`;
+  info.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:9px';
+  info.textContent = `${stats.total} פידבקים | ${stats.good} ✅ ${stats.bad} ❌`;
   rows.appendChild(info);
-
   Object.entries(weights).forEach(([k, v]) => {
     const pct = Math.round(v * 100);
-    const row = document.createElement('div');
-    row.className = 'weight-row';
-    row.innerHTML = `
-      <span class="weight-label">${DIM_LABELS[k] || k}</span>
-      <div class="weight-bar">
-        <div class="weight-fill" style="width:${Math.min(pct * 4, 100)}%; background:${DIM_COLORS[k] || 'var(--accent)'}"></div>
-      </div>
-      <span class="weight-val">${pct}%</span>`;
+    const row = document.createElement('div'); row.className = 'weight-row';
+    row.innerHTML = `<span class="weight-label">${DIM_LABELS[k]||k}</span><div class="weight-bar"><div class="weight-fill" style="width:${Math.min(pct*4,100)}%;background:${DIM_COLORS[k]||'var(--accent)'}"></div></div><span class="weight-val">${pct}%</span>`;
     rows.appendChild(row);
   });
 }
 
-// ── Render clip cards ─────────────────────────────────────────────────────────
-function scoreColor(s) {
-  if (s >= 8) return '#e8ff47';
-  if (s >= 6) return '#47ffd4';
-  if (s >= 4) return '#ff9f47';
-  return '#ff4747';
-}
+// ── Clip renderer ─────────────────────────────────────────────────────────────
+function scoreColor(s) { return s>=8?'#e8ff47':s>=6?'#47ffd4':s>=4?'#ff9f47':'#ff4747'; }
 
-function renderClips(clips) {
-  const container = document.getElementById('resultsContainer');
-  const count     = document.getElementById('resultsCount');
+function fmtSec(s) { if (!s) return ''; return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'); }
 
+function renderClips(containerId, ns, clips, videoId, segments) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
   if (!clips || clips.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <span class="empty-icon">🔍</span>
-        <span class="empty-title">לא נמצאו קליפים מתאימים</span>
-        <span class="empty-sub">נסה לשנות את הפרמטרים או הפרומפט</span>
-      </div>`;
-    count.textContent = '';
+    container.innerHTML = `<div class="empty-state"><span class="empty-icon">🔍</span><span class="empty-title">לא נמצאו קליפים</span><span class="empty-sub">נסה לשנות פרמטרים</span></div>`;
     return;
   }
-
-  count.textContent = `${clips.length} קליפים`;
   container.innerHTML = '';
+  window[`_segs_${ns}`] = segments || [];
+  window[`_vid_${ns}`]  = videoId  || null;
 
   clips.forEach((clip, i) => {
-    const fs     = clip.final_score || clip.score || 0;
+    const fs = clip.final_score || clip.score || 0;
     const scores = clip.scores || {};
-    const card   = document.createElement('div');
+    const uid = `${ns}_${i}`;
+    const card = document.createElement('div');
     card.className = 'clip-card';
 
-    // Dimension bars
     const dimBars = Object.entries(DIM_LABELS).map(([k, label]) => {
-      const val   = scores[k] ?? 0;
-      const color = DIM_COLORS[k];
-      return `
-        <div class="dim-row">
-          <div class="dim-label-row">
-            <span class="dim-label">${label}</span>
-            <span class="dim-val" style="color:${color}">${val}/10</span>
-          </div>
-          <div class="dim-bar">
-            <div class="dim-fill" style="width:${val * 10}%; background:${color}"></div>
-          </div>
-        </div>`;
+      const val = scores[k] ?? 0;
+      return `<div class="dim-row"><div class="dim-label-row"><span class="dim-label">${label}</span><span class="dim-val" style="color:${DIM_COLORS[k]}">${val}/10</span></div><div class="dim-bar"><div class="dim-fill" style="width:${val*10}%;background:${DIM_COLORS[k]}"></div></div></div>`;
     }).join('');
 
-    const quoteHtml = clip.best_quote
-      ? `<div class="quote-box"><div class="quote-label">ציטוט מומלץ</div>${clip.best_quote}</div>`
+    const quote = clip.best_quote ? `<div class="quote-box"><div class="quote-label">ציטוט מומלץ</div>${clip.best_quote}</div>` : '';
+    const timeLabel = clip.start_time ? `<span class="clip-time">${fmtSec(clip.start_time)}–${fmtSec(clip.end_time)}</span>` : '';
+    const editBtn = videoId
+      ? `<button class="edit-clip-btn" onclick="openEditor('${ns}',${i})">✂️ ייצר קליפ</button>`
       : '';
 
     card.innerHTML = `
       <div class="clip-header">
         <div class="clip-left">
-          <span class="clip-num">קליפ ${i + 1}</span>
+          <span class="clip-num">קליפ ${i+1}</span>
+          ${timeLabel}
           ${scores.hook_strength >= 6 ? '<span class="hook-badge">✦ HOOK</span>' : ''}
         </div>
         <div class="final-score">
-          <span class="final-score-num" style="color:${scoreColor(fs)}">
-            ${typeof fs === 'number' ? fs.toFixed(1) : fs}
-          </span>
+          <span class="final-score-num" style="color:${scoreColor(fs)}">${typeof fs==='number'?fs.toFixed(1):fs}</span>
           <span class="final-score-denom">/10</span>
         </div>
       </div>
-
       <div class="clip-body">
         <div class="dims-grid">${dimBars}</div>
         ${clip.reason ? `<div class="clip-reason">${clip.reason}</div>` : ''}
-        ${quoteHtml}
+        ${quote}
         <div class="toggle-row" onclick="toggleText(this)">
           <span class="toggle-label">טקסט מלא</span>
           <span class="toggle-arrow">▼</span>
         </div>
-        <div class="clip-text-content">${clip.text || ''}</div>
+        <div class="clip-text-content">${clip.text||''}</div>
       </div>
-
       <div class="clip-footer">
-        <span class="feedback-label-sm">דירוג:</span>
-        <button class="fb-btn good" onclick="openFeedback(this, 'good', ${i})">👍 טוב</button>
-        <button class="fb-btn bad"  onclick="openFeedback(this, 'bad',  ${i})">👎 לא מתאים</button>
+        ${editBtn}
+        <button class="fb-btn good" onclick="toggleFeedbackForm('${uid}')">✍️ תן משוב</button>
       </div>
+      <div class="fb-form" id="fb-form-${uid}">
 
-      <div class="fb-comment-wrap" id="fb-wrap-${i}">
-        <textarea class="fb-comment" rows="2" placeholder="הערה — מה היה חסר? מה היה מיותר?"></textarea>
-        <button class="fb-save-btn" onclick="saveFeedback(${i})">שמור משוב</button>
-        <div class="fb-saved" id="fb-saved-${i}">✓ נשמר</div>
+        <div>
+          <div class="fb-section-title">ציונים</div>
+          <div class="fb-scores-grid">
+            <div class="fb-score-row">
+              <span class="fb-score-label">כללי</span>
+              <input type="range" class="fb-score-slider" min="1" max="10" value="5" id="fb-overall-${uid}" oninput="document.getElementById('fb-overall-disp-${uid}').textContent=this.value">
+              <span class="fb-score-display" id="fb-overall-disp-${uid}">5</span>
+            </div>
+            <div class="fb-score-row">
+              <span class="fb-score-label">התחלה</span>
+              <input type="range" class="fb-score-slider" min="1" max="10" value="5" id="fb-start-${uid}" oninput="document.getElementById('fb-start-disp-${uid}').textContent=this.value">
+              <span class="fb-score-display" id="fb-start-disp-${uid}">5</span>
+            </div>
+            <div class="fb-score-row">
+              <span class="fb-score-label">אמצע</span>
+              <input type="range" class="fb-score-slider" min="1" max="10" value="5" id="fb-mid-${uid}" oninput="document.getElementById('fb-mid-disp-${uid}').textContent=this.value">
+              <span class="fb-score-display" id="fb-mid-disp-${uid}">5</span>
+            </div>
+            <div class="fb-score-row">
+              <span class="fb-score-label">סוף</span>
+              <input type="range" class="fb-score-slider" min="1" max="10" value="5" id="fb-end-${uid}" oninput="document.getElementById('fb-end-disp-${uid}').textContent=this.value">
+              <span class="fb-score-display" id="fb-end-disp-${uid}">5</span>
+            </div>
+            <div class="fb-score-row">
+              <span class="fb-score-label">מסר</span>
+              <input type="range" class="fb-score-slider" min="1" max="10" value="5" id="fb-msg-${uid}" oninput="document.getElementById('fb-msg-disp-${uid}').textContent=this.value">
+              <span class="fb-score-display" id="fb-msg-disp-${uid}">5</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="fb-section-title">מטרת הסרטון</div>
+          <div class="fb-purpose-btns">
+            <button class="fb-purpose-btn" onclick="setPurpose(this,'${uid}','חשיפה')">חשיפה</button>
+            <button class="fb-purpose-btn" onclick="setPurpose(this,'${uid}','בניית אמון')">בניית אמון</button>
+            <button class="fb-purpose-btn" onclick="setPurpose(this,'${uid}','מיתוג ומיצוב')">מיתוג ומיצוב</button>
+          </div>
+        </div>
+
+        <div class="fb-captured-row">
+          <span class="fb-captured-label">כל התוכן הרלוונטי למסר נתפס?</span>
+          <div class="fb-yes-no">
+            <button class="fb-yn-btn yes" onclick="setCaptured(this,'${uid}',true)">כן</button>
+            <button class="fb-yn-btn no"  onclick="setCaptured(this,'${uid}',false)">לא</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="fb-section-title">תוכן שהיה חסר</div>
+          <textarea class="fb-textarea" id="fb-missing-${uid}" rows="2" placeholder="מה היה חסר מהקטע כדי להשלים את המסר?"></textarea>
+        </div>
+
+        <div>
+          <div class="fb-section-title">הערה כללית</div>
+          <textarea class="fb-textarea" id="fb-comment-${uid}" rows="2" placeholder="הערות נוספות..."></textarea>
+        </div>
+
+        <div class="fb-submit-row">
+          <button class="fb-submit-btn" onclick="saveFeedback('${uid}')">שמור משוב</button>
+          <span class="fb-saved-msg" id="fb-saved-${uid}">✓ נשמר בהצלחה</span>
+        </div>
+
       </div>`;
 
-    card.dataset.clipIndex = i;
-    card.dataset.clipText  = (clip.text || '').substring(0, 600);
+    card.dataset.clipIndex = uid;
+    card.dataset.clipText  = (clip.text||'').substring(0,600);
     card.dataset.scores    = JSON.stringify(scores);
+    card.dataset.start     = clip.start_time || 0;
+    card.dataset.end       = clip.end_time   || 0;
+    card.dataset.ns        = ns;
     container.appendChild(card);
   });
 }
 
-// ── Toggle full text ──────────────────────────────────────────────────────────
 function toggleText(el) {
-  const arrow   = el.querySelector('.toggle-arrow');
-  const content = el.nextElementSibling;
-  const isOpen  = content.classList.toggle('open');
-  arrow.classList.toggle('open', isOpen);
+  const arrow = el.querySelector('.toggle-arrow');
+  arrow.classList.toggle('open', el.nextElementSibling.classList.toggle('open'));
 }
 
 // ── Feedback ──────────────────────────────────────────────────────────────────
-function openFeedback(btn, verdict, idx) {
-  const card   = document.querySelector(`[data-clip-index="${idx}"]`);
-  const footer = btn.closest('.clip-footer');
-  footer.querySelectorAll('.fb-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  card.dataset.verdict = verdict;
-  document.getElementById(`fb-wrap-${idx}`).classList.add('open');
+
+// Per-uid state for purpose and captured
+const fbState = {};
+
+function toggleFeedbackForm(uid) {
+  const form = document.getElementById(`fb-form-${uid}`);
+  form.classList.toggle('open');
 }
 
-async function saveFeedback(idx) {
-  const card    = document.querySelector(`[data-clip-index="${idx}"]`);
-  const wrap    = document.getElementById(`fb-wrap-${idx}`);
-  const savedEl = document.getElementById(`fb-saved-${idx}`);
+function setPurpose(btn, uid, purpose) {
+  btn.closest('.fb-purpose-btns').querySelectorAll('.fb-purpose-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (!fbState[uid]) fbState[uid] = {};
+  fbState[uid].purpose = purpose;
+}
+
+function setCaptured(btn, uid, val) {
+  btn.closest('.fb-yes-no').querySelectorAll('.fb-yn-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (!fbState[uid]) fbState[uid] = {};
+  fbState[uid].captured = val;
+}
+
+async function saveFeedback(uid) {
+  const card    = document.querySelector(`[data-clip-index="${uid}"]`);
+  const ns      = card.dataset.ns;
   const userId  = document.getElementById('userId').value || 'default';
+  const state   = fbState[uid] || {};
+
+  const overall = parseInt(document.getElementById(`fb-overall-${uid}`)?.value || 5);
+  const verdict = overall >= 6 ? 'good' : 'bad';
+
+  const payload = {
+    user_id:           userId,
+    clip_text:         card.dataset.clipText,
+    scores:            JSON.parse(card.dataset.scores || '{}'),
+    verdict:           verdict,
+    comment:           document.getElementById(`fb-comment-${uid}`)?.value || '',
+    overall_score:     overall,
+    start_score:       parseInt(document.getElementById(`fb-start-${uid}`)?.value || 5),
+    middle_score:      parseInt(document.getElementById(`fb-mid-${uid}`)?.value || 5),
+    end_score:         parseInt(document.getElementById(`fb-end-${uid}`)?.value || 5),
+    message_score:     parseInt(document.getElementById(`fb-msg-${uid}`)?.value || 5),
+    marketing_purpose: state.purpose   || null,
+    message_captured:  state.captured  ?? null,
+    missing_content:   document.getElementById(`fb-missing-${uid}`)?.value || null,
+  };
 
   try {
     const res = await fetch(`${API}/feedback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    const savedEl = document.getElementById(`fb-saved-${uid}`);
+    if (savedEl) savedEl.style.display = 'block';
+    renderWeights(ns, data.current_weights, data.stats);
+    const banner = document.getElementById(`${ns}-banner`);
+    if (banner) {
+      banner.textContent = `✓ משוב נשמר | ${data.stats.total} פידבקים | ציון: ${overall}/10`;
+      banner.classList.add('visible');
+      setTimeout(() => banner.classList.remove('visible'), 4000);
+    }
+  } catch (err) { alert('שגיאה בשמירת משוב: ' + err.message); }
+}
+
+// ── MODE 1: Transcribe only ───────────────────────────────────────────────────
+let m1File = null;
+setupZone('m1-zone','m1-file','m1-fname', f => { m1File = f; });
+
+async function runTranscribeOnly() {
+  if (!m1File) { showErr('m1-err','m1-errText','לא נבחר קובץ'); return; }
+  hideErr('m1-err');
+  const btn = document.getElementById('m1-btn');
+  btn.disabled = true; btn.classList.add('loading');
+  document.getElementById('m1-prog').classList.add('visible');
+  document.getElementById('m1-step').className = 'step active';
+  setStatus('מתמלל...','active');
+  try {
+    const result = await streamTranscribe(m1File, {
+      barFill: document.getElementById('m1-barFill'),
+      pct:     document.getElementById('m1-pct'),
+      stepText:document.getElementById('m1-stepText'),
+      live:    document.getElementById('m1-live'),
+      barWrap: document.getElementById('m1-barWrap'),
+    });
+    document.getElementById('m1-step').className = 'step done';
+    document.getElementById('m1-stepText').textContent = '✓ תמלול הושלם';
+    document.getElementById('m1-count').textContent = `${(result.segments||[]).length} קטעים | ${Math.round(result.confidence*100)}% ביטחון`;
+    setStatus('הושלם ✓', false);
+    showTranscript(result.transcript, m1File.name);
+  } catch (err) {
+    document.getElementById('m1-step').className = 'step error-step';
+    showErr('m1-err','m1-errText', err.message);
+    setStatus('שגיאה','error');
+  } finally { btn.disabled = false; btn.classList.remove('loading'); }
+}
+
+function showTranscript(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  document.getElementById('m1-output').innerHTML = `
+    <div class="transcript-output">
+      <div class="transcript-output-header">
+        <span class="transcript-output-title">תמלול מלא</span>
+        <span class="transcript-meta">${filename}</span>
+      </div>
+      <div class="transcript-text">${text}</div>
+      <div class="transcript-actions">
+        <a class="transcript-dl" href="${url}" download="${filename.replace(/\.[^.]+$/,'')}_transcript.txt">⬇ הורד .txt</a>
+      </div>
+    </div>`;
+}
+
+// ── MODE 2: Clips from text ───────────────────────────────────────────────────
+let m2Transcript = null;
+setupZone('m2-zone','m2-file','m2-fname', file => {
+  const r = new FileReader();
+  r.onload = e => { m2Transcript = e.target.result; };
+  r.readAsText(file, 'utf-8');
+});
+
+async function runClipsOnly() {
+  if (!m2Transcript) { showErr('m2-err','m2-errText','לא הועלה קובץ'); return; }
+  hideErr('m2-err');
+  const btn = document.getElementById('m2-btn');
+  btn.disabled = true; btn.classList.add('loading');
+  setStatus('בוחר קליפים...','active');
+  try {
+    const res = await fetch(`${API}/select-clips`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id:   userId,
-        clip_text: card.dataset.clipText,
-        scores:    JSON.parse(card.dataset.scores || '{}'),
-        verdict:   card.dataset.verdict || 'bad',
-        comment:   wrap.querySelector('.fb-comment').value
+        transcript: m2Transcript,
+        strategy: {
+          tone:             document.getElementById('m2-tone').value,
+          audience:         document.getElementById('m2-audience').value,
+          platform:         document.getElementById('m2-platform').value,
+          min_clip_seconds: parseInt(document.getElementById('m2-min').value),
+          max_clip_seconds: parseInt(document.getElementById('m2-max').value),
+          require_hook: true,
+          custom_prompt: document.getElementById('m2-prompt').value || null,
+          user_id: document.getElementById('userId').value || 'default'
+        }
       })
     });
-
+    if (!res.ok) throw new Error(`שגיאת בחירת קליפים: ${res.status}`);
     const data = await res.json();
-    savedEl.style.display = 'block';
-    renderWeights(data.current_weights, data.stats);
-    showBanner(`✓ משוב נשמר | סה״כ ${data.stats.total} פידבקים | המשקלים עודכנו`);
+    document.getElementById('m2-count').textContent = `${data.clips.length} קליפים`;
+    renderClips('m2-results', 'm2', data.clips, null, []);
+    setStatus('הושלם ✓', false);
+    await loadWeights('clips');
+  } catch (err) {
+    showErr('m2-err','m2-errText', err.message);
+    setStatus('שגיאה','error');
+  } finally { btn.disabled = false; btn.classList.remove('loading'); }
+}
+
+// ── MODE 3: Full pipeline ─────────────────────────────────────────────────────
+let m3File = null;
+setupZone('m3-zone','m3-file','m3-fname', f => { m3File = f; });
+
+function setStep(id, state) {
+  const el = document.getElementById(id);
+  el.className = 'step'+(state==='active'?' active':state==='done'?' done':state==='error'?' error-step':'');
+}
+
+async function runFull() {
+  if (!m3File) { showErr('m3-err','m3-errText','לא נבחר קובץ'); return; }
+  hideErr('m3-err');
+  const btn = document.getElementById('m3-btn');
+  btn.disabled = true; btn.classList.add('loading');
+  document.getElementById('m3-prog').classList.add('visible');
+  setStep('m3-step1','idle'); setStep('m3-step2','idle');
+
+  try {
+    setStep('m3-step1','active'); setStatus('מתמלל...','active');
+
+    const result = await streamTranscribe(m3File, {
+      barFill:  document.getElementById('m3-barFill'),
+      pct:      document.getElementById('m3-pct'),
+      stepText: document.getElementById('m3-step1Text'),
+      live:     document.getElementById('m3-live'),
+      barWrap:  document.getElementById('m3-barWrap'),
+    });
+
+    currentVideoId  = result.video_id;
+    currentSegments = result.segments || [];
+    document.getElementById('m3-fname').textContent = `✓ ${m3File.name} | ${(result.segments||[]).length} קטעים | ${Math.round(result.confidence*100)}% ביטחון`;
+    setStep('m3-step1','done');
+    document.getElementById('m3-step1Text').textContent = '✓ תמלול הושלם';
+
+    setStep('m3-step2','active'); setStatus('בוחר קליפים...','active');
+    document.getElementById('m3-step2Text').textContent = 'שולח ל-AI...';
+
+    const res = await fetch(`${API}/select-clips`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transcript: result.transcript,
+        strategy: {
+          tone:             document.getElementById('m3-tone').value,
+          audience:         document.getElementById('m3-audience').value,
+          platform:         document.getElementById('m3-platform').value,
+          min_clip_seconds: parseInt(document.getElementById('m3-min').value),
+          max_clip_seconds: parseInt(document.getElementById('m3-max').value),
+          require_hook: true,
+          custom_prompt: document.getElementById('m3-prompt').value || null,
+          user_id: document.getElementById('userId').value || 'default'
+        }
+      })
+    });
+    if (!res.ok) throw new Error(`שגיאת קליפים: ${res.status}`);
+    const data = await res.json();
+    setStep('m3-step2','done');
+    document.getElementById('m3-step2Text').textContent = `✓ ${data.clips.length} קליפים נבחרו`;
+    document.getElementById('m3-count').textContent = `${data.clips.length} קליפים`;
+    setStatus('הושלם ✓', false);
+    renderClips('m3-results', 'm3', data.clips, currentVideoId, currentSegments);
+    document.getElementById('m3-prog').classList.remove('visible');
+    await loadWeights('full');
 
   } catch (err) {
-    showError('שגיאה בשמירת משוב: ' + err.message);
+    setStatus('שגיאה','error');
+    showErr('m3-err','m3-errText', err.message);
+    ['m3-step1','m3-step2'].forEach(id => {
+      if (document.getElementById(id).classList.contains('active')) setStep(id,'error');
+    });
+  } finally { btn.disabled = false; btn.classList.remove('loading'); }
+}
+
+// ── Editor modal ──────────────────────────────────────────────────────────────
+let editorData = null;
+
+function openEditor(ns, idx) {
+  const card = document.querySelector(`[data-clip-index="${ns}_${idx}"]`);
+  const start = parseFloat(card.dataset.start) || 0;
+  const end   = parseFloat(card.dataset.end)   || 0;
+  const segs  = (window[`_segs_${ns}`] || []).filter(s => s.start >= start-1 && s.end <= end+1);
+  const vidId = window[`_vid_${ns}`] || currentVideoId;
+
+  editorData = { start, end, segments: segs, videoId: vidId };
+
+  document.getElementById('editorOptions').style.display = 'flex';
+  document.getElementById('editorProgress').classList.remove('visible');
+  document.getElementById('editorPlayer').classList.remove('visible');
+  document.getElementById('editorError').classList.remove('visible');
+  document.getElementById('editorFill').style.width = '0%';
+  document.getElementById('editorPct').textContent = '0%';
+  document.getElementById('editorStep').textContent = 'מתחיל...';
+  document.getElementById('editorRunBtn').disabled = false;
+  document.getElementById('editorRunBtn').classList.remove('loading');
+  const vid = document.getElementById('editorVideo'); vid.src=''; vid.load();
+  document.getElementById('editorOverlay').classList.add('visible');
+}
+
+function closeEditor() { document.getElementById('editorOverlay').classList.remove('visible'); }
+
+async function startEdit() {
+  if (!editorData?.videoId) { showEditorErr('לא נמצא video_id. השתמש בפייפליין המלא (מצב 3).'); return; }
+  const btn = document.getElementById('editorRunBtn');
+  btn.disabled = true; btn.classList.add('loading');
+  document.getElementById('editorOptions').style.display = 'none';
+  document.getElementById('editorProgress').classList.add('visible');
+  document.getElementById('editorError').classList.remove('visible');
+  document.getElementById('editorPlayer').classList.remove('visible');
+  try {
+    const res = await fetch(`${EDITOR_API}/edit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id:  editorData.videoId,
+        start:     editorData.start,
+        end:       editorData.end,
+        segments:  editorData.segments,
+        portrait:  document.getElementById('optPortrait').checked,
+        subtitles: document.getElementById('optSubtitles').checked
+      })
+    });
+    if (!res.ok) throw new Error(`שגיאה ${res.status}`);
+    const { job_id } = await res.json();
+    await streamEditProgress(job_id);
+  } catch (err) {
+    showEditorErr(err.message);
+    btn.disabled = false; btn.classList.remove('loading');
+    document.getElementById('editorOptions').style.display = 'flex';
   }
 }
 
-// Load weights on page open
-loadWeights();
+function streamEditProgress(jobId) {
+  return new Promise((resolve, reject) => {
+    fetch(`${EDITOR_API}/status/${jobId}`)
+      .then(res => {
+        const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
+        function next({ done, value }) {
+          if (done) return;
+          buf += dec.decode(value, { stream: true });
+          const parts = buf.split('\n\n'); buf = parts.pop();
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const dm = part.match(/^data: (.+)$/m); if (!dm) continue;
+            let p; try { p = JSON.parse(dm[1]); } catch { continue; }
+            document.getElementById('editorFill').style.width = `${p.progress||0}%`;
+            document.getElementById('editorPct').textContent = `${p.progress||0}%`;
+            document.getElementById('editorStep').textContent = p.current || '...';
+            if (p.status === 'done') {
+              const url = `${EDITOR_API}/output/${jobId}`;
+              const vid = document.getElementById('editorVideo'); vid.src = url; vid.load();
+              document.getElementById('editorDl').href = url;
+              document.getElementById('editorProgress').classList.remove('visible');
+              document.getElementById('editorPlayer').classList.add('visible');
+              resolve(); return;
+            } else if (p.status === 'error') { reject(new Error(p.error||'שגיאה')); return; }
+          }
+          reader.read().then(next).catch(reject);
+        }
+        reader.read().then(next).catch(reject);
+      })
+      .catch(() => reject(new Error('לא ניתן להתחבר לשרת העריכה על פורט 8002.')));
+  });
+}
+
+function showEditorErr(msg) { const el = document.getElementById('editorError'); el.textContent = msg; el.classList.add('visible'); }
+
+// ── Error helpers ─────────────────────────────────────────────────────────────
+function showErr(errId, textId, msg) { document.getElementById(textId).textContent = msg; document.getElementById(errId).classList.add('visible'); }
+function hideErr(errId) { document.getElementById(errId).classList.remove('visible'); }
 </script>
 </body>
 </html>
