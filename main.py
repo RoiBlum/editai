@@ -37,6 +37,11 @@ def feedback_endpoint(request: FeedbackRequest):
         marketing_purpose=request.marketing_purpose,
         message_captured=request.message_captured,
         missing_content=request.missing_content,
+        overall_comment=request.overall_comment,
+        start_comment=request.start_comment,
+        middle_comment=request.middle_comment,
+        end_comment=request.end_comment,
+        message_comment=request.message_comment,
     )
     stats = get_feedback_stats(request.user_id)
     weights = get_learned_weights(request.user_id)

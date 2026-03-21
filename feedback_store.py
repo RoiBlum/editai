@@ -34,6 +34,11 @@ def save_feedback(
     marketing_purpose: str = None,
     message_captured: bool = None,
     missing_content: str = None,
+    overall_comment: str = None,
+    start_comment:   str = None,
+    middle_comment:  str = None,
+    end_comment:     str = None,
+    message_comment: str = None,
 ):
     supabase.table("feedback").insert({
         "user_id":           user_id,
@@ -49,6 +54,11 @@ def save_feedback(
         "marketing_purpose": marketing_purpose,
         "message_captured":  message_captured,
         "missing_content":   missing_content,
+        "overall_comment":   overall_comment,
+        "start_comment":     start_comment,
+        "middle_comment":    middle_comment,
+        "end_comment":       end_comment,
+        "message_comment":   message_comment,
         "created_at":        datetime.now().isoformat()
     }).execute()
 

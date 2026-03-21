@@ -33,3 +33,9 @@ class FeedbackRequest(BaseModel):
     marketing_purpose: Optional[str]  = None   # חשיפה | בניית אמון | מיתוג ומיצוב
     message_captured:  Optional[bool] = None   # was full message captured?
     missing_content:   Optional[str]  = None   # what was missing
+    # ── Per-dimension comments ──
+    overall_comment: Optional[str] = None
+    start_comment:   Optional[str] = None
+    middle_comment:  Optional[str] = None
+    end_comment:     Optional[str] = None
+    message_comment: Optional[str] = None
