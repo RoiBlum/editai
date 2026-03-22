@@ -38,7 +38,7 @@ VIDEOS_DIR.mkdir(exist_ok=True)
 print("Loading Whisper model on CUDA...")
 
 model = WhisperModel(
-    "large-v3",
+    "ivrit-ai/whisper-large-v3-turbo-ct2",  # CTranslate2 version
     device="cuda",
     compute_type="float16"
 )
@@ -113,7 +113,15 @@ async def transcribe(file: UploadFile = File(...)):
                 raw_segments.append({
                     "start": round(segment.start, 2),
                     "end":   round(segment.end, 2),
-                    "text":  segment.text.strip()
+                    "text":  segment.text.strip(),
+                    "words": [
+                        {
+                            "word":  w.word,
+                            "start": round(w.start, 3),
+                            "end":   round(w.end, 3)
+                        }
+                        for w in (segment.words or [])
+                    ]
                 })
 
                 progress = min(10 + int((segment.end / total_duration) * 85), 95)

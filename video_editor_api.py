@@ -2,7 +2,6 @@ import os
 import json
 import uuid
 import asyncio
-import subprocess
 import tempfile
 from pathlib import Path
 from fastapi import FastAPI, BackgroundTasks
@@ -33,10 +32,16 @@ jobs: dict = {}
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
+class Word(BaseModel):
+    word:  str
+    start: float
+    end:   float
+
 class Segment(BaseModel):
     start: float
-    end: float
-    text: str
+    end:   float
+    text:  str
+    words: Optional[List[Word]] = None
 
 class EditRequest(BaseModel):
     video_id: str               # UUID returned by transcribe_api after saving the video
@@ -55,81 +60,178 @@ def sse(event: str, data: dict) -> str:
 
 # ── Subtitle generation ────────────────────────────────────────────────────────
 
+MAX_WORDS_PER_LINE  = 5   # max words on a single subtitle line
+MAX_LINES           = 2   # never more than 2 lines on screen at once
+MAX_WORDS_PER_CHUNK = MAX_WORDS_PER_LINE * MAX_LINES   # 10 words total max
+MAX_CHUNK_SECONDS   = 3.5  # also split if a chunk exceeds this duration
+SYNC_OFFSET_MS      = -0.08  # show subtitle 80ms early for better perceived sync
+
+
 def make_srt(segments: List[Segment], clip_start: float, output_path: Path):
     """
-    Generate an SRT subtitle file from Whisper segments.
-    Times are relative to the clip (subtract clip_start from each timestamp).
+    Generate an SRT subtitle file from Whisper word-level timestamps.
+
+    Chunks words into subtitle cards of at most MAX_WORDS_PER_CHUNK words
+    OR MAX_CHUNK_SECONDS seconds — whichever comes first.
+    Each card is split into at most MAX_LINES lines of MAX_WORDS_PER_LINE words.
+    Times are relative to the clip (subtract clip_start).
     """
+
     def fmt_time(seconds: float) -> str:
+        seconds = max(0.0, seconds)
         h  = int(seconds // 3600)
         m  = int((seconds % 3600) // 60)
         s  = int(seconds % 60)
-        ms = int((seconds - int(seconds)) * 1000)
+        ms = int(round((seconds - int(seconds)) * 1000))
         return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
-    lines = []
-    idx = 1
+    # ── Collect all words from all segments ───────────────────────────────────
+    all_words = []
     for seg in segments:
-        rel_start = max(0.0, seg.start - clip_start)
-        rel_end   = max(0.0, seg.end   - clip_start)
-        if rel_end <= 0:
+        if seg.words:
+            # Use precise word-level timestamps
+            for w in seg.words:
+                rel_start = w.start - clip_start
+                rel_end   = w.end   - clip_start
+                # Skip words that fall outside the clip
+                if rel_end < 0 or rel_start > (seg.end - clip_start + 1):
+                    continue
+                all_words.append({
+                    "word":  w.word.strip(),
+                    "start": rel_start,
+                    "end":   rel_end
+                })
+        else:
+            # Fallback: no word timestamps — distribute evenly across segment
+            text  = seg.text.strip()
+            words = text.split()
+            if not words:
+                continue
+            rel_start = seg.start - clip_start
+            rel_end   = seg.end   - clip_start
+            if rel_end <= 0:
+                continue
+            dur_per_word = (rel_end - rel_start) / len(words)
+            for i, word in enumerate(words):
+                all_words.append({
+                    "word":  word,
+                    "start": rel_start + i * dur_per_word,
+                    "end":   rel_start + (i + 1) * dur_per_word
+                })
+
+    if not all_words:
+        output_path.write_text("", encoding="utf-8")
+        return
+
+    # ── Chunk words into subtitle cards ──────────────────────────────────────
+    chunks = []
+    current_chunk = []
+
+    for word in all_words:
+        if not word["word"]:
             continue
-        # Add RTL unicode mark so libass renders right-to-left
-        text = "\u202B" + seg.text.strip()
-        lines.append(f"{idx}")
-        lines.append(f"{fmt_time(rel_start)} --> {fmt_time(rel_end)}")
-        lines.append(text)
-        lines.append("")
+
+        current_chunk.append(word)
+
+        chunk_duration = current_chunk[-1]["end"] - current_chunk[0]["start"]
+        over_word_limit = len(current_chunk) >= MAX_WORDS_PER_CHUNK
+        over_time_limit = chunk_duration >= MAX_CHUNK_SECONDS
+
+        if over_word_limit or over_time_limit:
+            chunks.append(current_chunk)
+            current_chunk = []
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    # ── Build SRT entries ─────────────────────────────────────────────────────
+    srt_lines = []
+    idx = 1
+
+    for chunk in chunks:
+        if not chunk:
+            continue
+
+        start_time = chunk[0]["start"]  + SYNC_OFFSET_MS
+        end_time   = chunk[-1]["end"]
+
+        if end_time <= 0:
+            continue
+
+        # Split words into max 2 lines
+        words_text = [w["word"] for w in chunk]
+        if len(words_text) <= MAX_WORDS_PER_LINE:
+            # Single line
+            text_display = " ".join(words_text)
+        else:
+            # Two lines — split roughly in half
+            split_at = (len(words_text) + 1) // 2
+            # Don't let either line exceed MAX_WORDS_PER_LINE
+            split_at = min(split_at, MAX_WORDS_PER_LINE)
+            line1 = " ".join(words_text[:split_at])
+            line2 = " ".join(words_text[split_at:])
+            text_display = line1 + "\n" + line2
+
+        # RTL unicode mark for Hebrew
+        text_display = "\u202B" + text_display
+
+        srt_lines.append(str(idx))
+        srt_lines.append(f"{fmt_time(start_time)} --> {fmt_time(end_time)}")
+        srt_lines.append(text_display)
+        srt_lines.append("")
         idx += 1
 
-    output_path.write_text("\n".join(lines), encoding="utf-8")
+    output_path.write_text("\n".join(srt_lines), encoding="utf-8")
+    print(f"[subtitles] {idx-1} subtitle cards from {len(all_words)} words")
 
 
 # ── FFmpeg helpers ─────────────────────────────────────────────────────────────
 
-def run_ffmpeg(args: list) -> tuple[int, str]:
-    """Run ffmpeg and return (returncode, stderr)."""
+async def run_ffmpeg(args: list) -> tuple[int, str]:
+    """Run ffmpeg asynchronously so it does not block the event loop."""
     cmd = ["ffmpeg", "-y"] + args
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
     )
-    return result.returncode, result.stderr
+    stdout, stderr = await proc.communicate()
+    return proc.returncode, stderr.decode(errors="replace")
 
 
-def get_video_dimensions(video_path: Path) -> tuple[int, int]:
-    """Return (width, height) using ffprobe - multiple fallback methods."""
-    # Method 1: try JSON format
-    import json as _json
-    result = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", str(video_path)],
-        capture_output=True, text=True
+async def get_video_dimensions(video_path: Path) -> tuple[int, int]:
+    """Return (width, height) using ffprobe - async, non-blocking."""
+    import json as _json, re as _re
+
+    # Method 1: JSON format
+    proc = await asyncio.create_subprocess_exec(
+        "ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", str(video_path),
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
+    out, _ = await proc.communicate()
     try:
-        data = _json.loads(result.stdout)
+        data = _json.loads(out.decode(errors="replace"))
         for stream in data.get("streams", []):
             if stream.get("codec_type") == "video":
                 w, h = int(stream["width"]), int(stream["height"])
-                print(f"[dimensions] method1: {w}x{h}")
+                print(f"[dimensions] {video_path.name}: {w}x{h}")
                 return w, h
     except Exception as e:
-        print(f"[dimensions] method1 failed: {e}")
+        print(f"[dimensions] json failed: {e}")
 
-    # Method 2: use ffprobe with explicit stream entry format
-    result2 = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0",
-         "-show_entries", "stream=width,height",
-         "-of", "default=noprint_wrappers=1", str(video_path)],
-        capture_output=True, text=True
+    # Method 2: key=value format
+    proc2 = await asyncio.create_subprocess_exec(
+        "ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "default=noprint_wrappers=1", str(video_path),
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
+    out2, _ = await proc2.communicate()
     try:
         w, h = None, None
-        for line in result2.stdout.splitlines():
-            if line.startswith("width="):
-                w = int(line.split("=")[1].strip())
-            elif line.startswith("height="):
-                h = int(line.split("=")[1].strip())
+        for line in out2.decode(errors="replace").splitlines():
+            if line.startswith("width="):  w = int(line.split("=")[1].strip())
+            elif line.startswith("height="): h = int(line.split("=")[1].strip())
         if w and h:
             print(f"[dimensions] method2: {w}x{h}")
             return w, h
@@ -137,12 +239,12 @@ def get_video_dimensions(video_path: Path) -> tuple[int, int]:
         print(f"[dimensions] method2 failed: {e}")
 
     # Method 3: parse from ffmpeg stderr
-    result3 = subprocess.run(
-        ["ffmpeg", "-i", str(video_path)],
-        capture_output=True, text=True
+    proc3 = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-i", str(video_path),
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    import re
-    match = re.search(r"(\d{2,5})x(\d{2,5})", result3.stderr)
+    _, err3 = await proc3.communicate()
+    match = _re.search(r"(\d{2,5})x(\d{2,5})", err3.decode(errors="replace"))
     if match:
         w, h = int(match.group(1)), int(match.group(2))
         print(f"[dimensions] method3: {w}x{h}")
@@ -175,10 +277,6 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
             jobs[job_id]["error"] = error
 
     try:
-        print(f"[edit] start={request.start} end={request.end} duration={request.end - request.start} video_id={request.video_id}")
-        duration = request.end - request.start
-        if duration <= 0:
-            raise ValueError(f"משך הקליפ לא תקין: start={request.start} end={request.end}. הגדר timestamps בכרטיס הקליפ.")
         # ── Step 1: Find source video ────────────────────────────────────────
         update("מאתר קובץ וידאו...", 5)
         await asyncio.sleep(0.1)
@@ -206,7 +304,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
         duration  = request.end - request.start
         cut_path  = OUTPUTS_DIR / f"{job_id}_cut.mp4"
 
-        rc, err = run_ffmpeg([
+        rc, err = await run_ffmpeg([
             "-i", str(source_video),
             "-ss", str(request.start),   # accurate seek AFTER -i
             "-t", str(duration),
@@ -221,7 +319,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
             raise RuntimeError(f"שגיאה בחיתוך: {err[-300:]}")
         
         # Verify cut file is valid before continuing
-        cut_w, cut_h = get_video_dimensions(cut_path)
+        cut_w, cut_h = await get_video_dimensions(cut_path)
         print(f"[cut] output dimensions: {cut_w}x{cut_h}")
         if cut_w == 0 or cut_h == 0:
             raise RuntimeError("קובץ החיתוך פגום — מידות 0")
@@ -235,7 +333,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
         if request.portrait:
             update("חותך לפורמט אנכי 9:16...", 50)
 
-            w, h = get_video_dimensions(cut_path)
+            w, h = await get_video_dimensions(cut_path)
             print(f"[crop] source dimensions: {w}x{h}")
 
             # Must ensure dimensions are even numbers (required by libx264)
@@ -262,7 +360,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
                 shutil.copy(cut_path, cropped_path)
                 update("חיתוך פורמט דולג (מידות לא תקינות)", 60)
             else:
-                rc, err = run_ffmpeg([
+                rc, err = await run_ffmpeg([
                     "-i", str(cut_path),
                     "-vf", f"crop={target_w}:{target_h}:{crop_x}:0",
                     "-c:v", "libx264",
@@ -304,7 +402,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
 
             subtitle_style = (
                 "FontName=Arial,"
-                "FontSize=18,"
+                "FontSize=12,"
                 "PrimaryColour=&H00FFFFFF,"  # white text
                 "OutlineColour=&H00000000,"  # black outline
                 "BackColour=&H80000000,"     # semi-transparent background
@@ -315,7 +413,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
                 "MarginV=40"
             )
 
-            rc, err = run_ffmpeg([
+            rc, err = await run_ffmpeg([
                 "-i", str(cropped_path),
                 "-vf", f"subtitles='{srt_escaped}':force_style='{subtitle_style}'",
                 "-c:v", "libx264",
