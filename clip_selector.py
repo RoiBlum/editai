@@ -4,50 +4,77 @@ from chunker import chunk_transcript
 from feedback_store import build_examples_block, get_learned_weights, DEFAULT_WEIGHTS
 
 
-SCORING_SYSTEM_PROMPT = """You are an expert at selecting viral Hebrew podcast clips for social media marketing.
+SCORING_SYSTEM_PROMPT = """You are an expert at selecting viral Hebrew podcast clips for social media.
 
-Your job is to score a transcript segment on 6 dimensions. Be strict and honest — most segments are NOT good clips.
+The transcript uses speaker labels like "Voice 1:" and "Voice 2:". Use this information — dialogue clips where speakers challenge each other often perform differently than monologue clips.
 
-## THE 6 DIMENSIONS
+## WHAT MAKES A GREAT CLIP (in order of importance)
 
-**1. hook_strength (0-10)**
-Judge only the FIRST 2-3 sentences. Would someone stop scrolling?
-- 9-10: Bold claim, shocking number, direct challenge to a belief, or confession
-- 7-8: A question or relatable situation that pulls you in
-- 5-6: Starts mid-thought, needs context to understand
-- 1-4: Filler, greetings, setup with no visible payoff
+**1. The hook (first 3-5 seconds) must stop the scroll.**
+The very first sentence must make someone stop mid-scroll. The strongest hooks are:
+- A bold counter-intuitive claim: "רוב האנשים שקונים דירה עושים טעות אחת קריטית"
+- A confession or personal stake: "אני לא סובל את המשפטים האלה"  
+- A direct challenge: "בוא תקנה דירה עם אפס הון עצמי — זה רעיון מסוכן"
+- A provocative question: "למה כולם מייעצים לך לקנות דירה כשזה לא תמיד נכון?"
+If the clip opens mid-conversation or with filler, it fails.
 
-**2. completeness (0-10)**
-Does this segment stand alone without watching the rest?
-- 10: Clear beginning + middle + end. A stranger gets full value
-- 5: Good content but missing setup OR ending is cut off
-- 1: Only makes sense if you saw what came before
+**2. Dialogue dynamics**
+When Voice 2 asks a sharp question that Voice 1 then answers — this creates natural tension and is often better than a monologue. Look for:
+- Challenge/response patterns
+- Moments where one speaker pushes back
+- The interviewer question that unlocks a strong answer
 
-**3. emotional_peak (0-10)**
-Is there a moment of genuine strong feeling?
-- Humor, anger, vulnerability, excitement, surprise all score high
-- Flat monotone informational delivery scores low
+**3. The clip must stand completely alone**
+Someone who never heard this podcast must get FULL value. No references to "earlier we said", "as I mentioned", "like I explained". The clip must have its own narrative arc: setup → insight → conclusion.
 
-**4. value_density (0-10)**
-How much useful/interesting content per minute?
-- High: one concrete insight delivered tightly, no filler
-- Low: same point repeated, lots of filler words, tangents
+**4. Concrete and specific beats abstract**
+Numbers, specific examples, named mistakes, and real consequences always outperform vague advice. "תיקח הלוואה של 200,000 שקל על דירה שלא נמסרה" beats "לפעמים אנשים לוקחים הלוואות".
 
-**5. profile_match (0-10)**
-How directly relevant is this to the stated audience and goals?
+**5. Emotional authenticity**
+Real frustration, genuine passion, or authentic vulnerability. NOT polished radio-style delivery. The moment when the speaker breaks from interview mode and speaks from the gut.
 
-**6. quotability (0-10)**
-Is there a single punchy sentence that could be a caption or thumbnail?
+## THE 6 SCORING DIMENSIONS
 
-## HARD DISQUALIFIERS
-If ANY of these are true, set disqualified=true:
-- Segment starts or ends mid-sentence with no natural break
-- Speaker references the podcast or that they are being recorded
-- More than 30% is crosstalk or interruption
-- Contains a specific date or price that makes it time-sensitive
+**hook_strength (0-10)** — First 3-5 seconds only
+- 9-10: Would stop someone mid-scroll immediately
+- 7-8: Interesting opener, most people would keep watching
+- 5-6: Mediocre start, needs warming up
+- 1-4: Filler, greeting, or starts mid-thought
 
-## OUTPUT FORMAT
-Return ONLY valid JSON, no extra text:
+**completeness (0-10)** — Does it stand alone?
+- 10: Full arc, stranger gets complete value
+- 7: Good content but slightly abrupt ending or needs minor context
+- 4: Missing key setup or conclusion
+- 1: Fragment, only makes sense in context
+
+**emotional_peak (0-10)** — Genuine feeling
+- 10: Raw authentic emotion — frustration, passion, shock, humor
+- 7: Clear conviction, engaged speaker
+- 4: Informational, flat delivery
+- 1: Robotic or clearly rehearsed
+
+**value_density (0-10)** — Insight per minute
+- 10: Every sentence earns its place, no filler
+- 7: Good content with minor filler
+- 4: Repeats itself, lots of "אה", "כן, כן", "אז"
+- 1: Almost all filler
+
+**profile_match (0-10)** — Match to stated audience and platform
+- Consider: does this work as a short clip on TikTok/Instagram?
+- Consider: does it speak directly to the stated target audience?
+
+**quotability (0-10)** — One punchy caption-worthy sentence
+- 10: A sentence that works standalone as a caption or thumbnail text
+- 1: Nothing quotable, all context-dependent
+
+## HARD DISQUALIFIERS — set disqualified=true if ANY apply:
+- Clip starts or ends mid-sentence with no natural break
+- Speaker says "כפי שאמרתי", "כמו שדיברנו", "כאמור", "קודם אמרתי" (references earlier content)
+- Speaker mentions being recorded, the podcast name, or the interviewer by name as a greeting
+- More than 40% of the clip is the same point repeated differently
+- Contains a specific date, price, or regulation that makes it time-sensitive and will age badly
+
+## OUTPUT FORMAT — return ONLY valid JSON, no extra text:
 {
   "scores": {
     "hook_strength": 0-10,
@@ -59,25 +86,29 @@ Return ONLY valid JSON, no extra text:
   },
   "disqualified": true/false,
   "disqualify_reason": "reason or empty string",
-  "best_quote": "the most quotable sentence from the segment in the original language",
-  "hook_sentence": "the opening sentence rewritten to be stronger in Hebrew",
-  "reason": "2-sentence explanation of overall assessment in English"
+  "clip_type": "monologue" or "dialogue" or "story",
+  "speaker_dynamic": "one sentence describing the speaker dynamic if relevant, else empty string",
+  "best_quote": "the single most quotable sentence from the segment, in the original Hebrew",
+  "hook_sentence": "the opening sentence as-is, or a suggested stronger version in Hebrew",
+  "reason": "2-3 sentence honest assessment of why this clip works or doesn't"
 }"""
 
 
 def score_chunk(chunk_text: str, strategy, weights: dict, examples_block: str) -> dict:
     examples_section = f"\n{examples_block}\n" if examples_block else ""
+
     user_message = f"""{examples_section}
-## CLIENT PROFILE
+## CONTENT PROFILE
 Tone: {strategy.tone}
 Audience: {strategy.audience}
 Platform: {strategy.platform}
-Clip length target: {strategy.min_clip_seconds}-{strategy.max_clip_seconds} seconds
+Target clip length: {strategy.min_clip_seconds}-{strategy.max_clip_seconds} seconds
 
 ## TRANSCRIPT SEGMENT TO SCORE:
 {chunk_text}
 """
     system = strategy.custom_prompt if getattr(strategy, 'custom_prompt', None) else SCORING_SYSTEM_PROMPT
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -100,12 +131,17 @@ def compute_final_score(scores: dict, weights: dict) -> float:
 def select_clips(transcript: str, strategy) -> list:
     user_id        = getattr(strategy, 'user_id', 'default') or 'default'
     weights        = get_learned_weights(user_id)
-    examples_block = build_examples_block(user_id, n=6)
-    chunks         = chunk_transcript(transcript)
-    results        = []
+    examples_block = build_examples_block(user_id, n=8)
+
+    # Chunk by actual time using strategy settings
+    min_sec = getattr(strategy, 'min_clip_seconds', 30)
+    max_sec = getattr(strategy, 'max_clip_seconds', 60)
+    chunks  = chunk_transcript(transcript, min_seconds=min_sec, max_seconds=max_sec)
+
+    results = []
 
     print(f"\n→ Scoring {len(chunks)} chunks for user '{user_id}'")
-    print(f"→ Weights: {weights}")
+    print(f"→ Time range: {min_sec}-{max_sec}s | Weights: { {k: round(v,2) for k,v in weights.items()} }")
 
     for chunk in chunks:
         try:
@@ -127,6 +163,8 @@ def select_clips(transcript: str, strategy) -> list:
             "final_score":       final_score,
             "disqualified":      disqualified,
             "disqualify_reason": analysis.get("disqualify_reason", ""),
+            "clip_type":         analysis.get("clip_type", ""),
+            "speaker_dynamic":   analysis.get("speaker_dynamic", ""),
             "best_quote":        analysis.get("best_quote", ""),
             "hook_sentence":     analysis.get("hook_sentence", ""),
             "reason":            analysis.get("reason", ""),
@@ -136,11 +174,13 @@ def select_clips(transcript: str, strategy) -> list:
             "contains_hook":     scores.get("hook_strength", 0) >= 6,
         }
 
-        print(f"  Chunk {chunk['index']}: {start_time:.1f}s-{end_time:.1f}s | final={final_score:.1f} | {'DISQ' if disqualified else 'ok'}")
+        status = "DISQ" if disqualified else f"score={final_score:.1f}"
+        print(f"  Chunk {chunk['index']}: {start_time:.1f}s-{end_time:.1f}s | {status} | {analysis.get('clip_type','')}")
         results.append(result)
 
+    # Filter: not disqualified, score >= 5.5, return top 5
     filtered = [r for r in results if not r["disqualified"] and r["final_score"] >= 5.5]
     filtered.sort(key=lambda x: x["final_score"], reverse=True)
     top = filtered[:5]
-    print(f"→ Selected {len(top)} clips\n")
+    print(f"→ Selected {len(top)} clips from {len(results)} scored\n")
     return top

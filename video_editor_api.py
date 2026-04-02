@@ -60,9 +60,9 @@ def sse(event: str, data: dict) -> str:
 
 # ── Subtitle generation ────────────────────────────────────────────────────────
 
-MAX_WORDS_PER_LINE  = 5   # max words on a single subtitle line
+MAX_WORDS_PER_LINE  = 4   # max words on a single subtitle line (keeps text within margins)
 MAX_LINES           = 2   # never more than 2 lines on screen at once
-MAX_WORDS_PER_CHUNK = MAX_WORDS_PER_LINE * MAX_LINES   # 10 words total max
+MAX_WORDS_PER_CHUNK = MAX_WORDS_PER_LINE * MAX_LINES   # 8 words total max
 MAX_CHUNK_SECONDS   = 3.5  # also split if a chunk exceeds this duration
 SYNC_OFFSET_MS      = -0.08  # show subtitle 80ms early for better perceived sync
 
@@ -158,22 +158,24 @@ def make_srt(segments: List[Segment], clip_start: float, output_path: Path):
         if end_time <= 0:
             continue
 
-        # Split words into max 2 lines
+        # Split words into max 2 lines — hard cap, never more
         words_text = [w["word"] for w in chunk]
+
+        # Enforce absolute maximum: truncate to MAX_WORDS_PER_CHUNK
+        if len(words_text) > MAX_WORDS_PER_CHUNK:
+            words_text = words_text[:MAX_WORDS_PER_CHUNK]
+
         if len(words_text) <= MAX_WORDS_PER_LINE:
-            # Single line
+            # Single line — pad with empty line so box height stays consistent
             text_display = " ".join(words_text)
         else:
-            # Two lines — split roughly in half
-            split_at = (len(words_text) + 1) // 2
-            # Don't let either line exceed MAX_WORDS_PER_LINE
-            split_at = min(split_at, MAX_WORDS_PER_LINE)
-            line1 = " ".join(words_text[:split_at])
-            line2 = " ".join(words_text[split_at:])
+            # Two lines — split at MAX_WORDS_PER_LINE boundary exactly
+            line1 = " ".join(words_text[:MAX_WORDS_PER_LINE])
+            line2 = " ".join(words_text[MAX_WORDS_PER_LINE:MAX_WORDS_PER_CHUNK])
             text_display = line1 + "\n" + line2
 
-        # RTL unicode mark for Hebrew
-        text_display = "\u202B" + text_display
+        # No RTL mark — libass handles Hebrew BiDi natively and correctly
+        # Adding \u202B breaks the Alignment anchor in libass
 
         srt_lines.append(str(idx))
         srt_lines.append(f"{fmt_time(start_time)} --> {fmt_time(end_time)}")
@@ -362,7 +364,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
             else:
                 rc, err = await run_ffmpeg([
                     "-i", str(cut_path),
-                    "-vf", f"crop={target_w}:{target_h}:{crop_x}:0",
+                    "-vf", f"crop={target_w}:{target_h}:{crop_x}:0,scale=1080:1920:force_original_aspect_ratio=decrease:force_divisible_by=2",
                     "-c:v", "libx264",
                     "-c:a", "aac",
                     "-preset", "fast",
@@ -372,6 +374,8 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
                 if rc != 0:
                     raise RuntimeError(f"שגיאה בחיתוך פורמט: {err[-400:]}")
 
+                crop_out_w, crop_out_h = await get_video_dimensions(cropped_path)
+                print(f"[crop] output dimensions: {crop_out_w}x{crop_out_h}")
                 update("פורמט אנכי ✓", 60)
 
         else:
@@ -393,43 +397,121 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
             update("כתוביות נוצרו ✓", 75)
             await asyncio.sleep(0.1)
 
-            # ── Step 5: Burn subtitles ───────────────────────────────────────
+            # ── Step 5: Burn subtitles with pycaps ──────────────────────────
             update("צורב כתוביות על הוידאו...", 80)
 
-            # Use libass via the subtitles filter
-            # force_style controls font, size, color, border
-            srt_escaped = str(srt_path).replace("\\", "/").replace(":", "\\:")
+            # Generate Whisper JSON with word-level timestamps for pycaps.
+            # pycaps needs per-word timing to render karaoke-style highlights;
+            # an SRT file has only phrase-level timing so text overlay is skipped.
+            import json as _json
+            whisper_json_path = OUTPUTS_DIR / f"{job_id}_whisper.json"
+            whisper_segs = []
+            for i, seg in enumerate(request.segments):
+                rel_start = max(0.0, seg.start - request.start)
+                rel_end   = max(0.0, seg.end   - request.start)
+                if rel_end <= 0:
+                    continue
+                words = []
+                if seg.words:
+                    for w in seg.words:
+                        w_s = max(0.0, w.start - request.start)
+                        w_e = max(0.0, w.end   - request.start)
+                        if w_e <= 0:
+                            continue
+                        words.append({"word": w.word.strip(), "start": w_s, "end": w_e, "probability": 0.99})
+                    # Reverse for RTL Hebrew: pycaps positions words left→right, so
+                    # reversing makes the visual order right→left (correct for Hebrew).
+                    # We also reverse the text so pycaps matches text[i] to words[i]
+                    # by index — without this, timestamps are assigned to the wrong
+                    # words and pycaps drops all clips except WORD_BEING_NARRATED.
+                    words.reverse()
 
-            subtitle_style = (
-                "FontName=Arial,"
-                "FontSize=12,"
-                "PrimaryColour=&H00FFFFFF,"  # white text
-                "OutlineColour=&H00000000,"  # black outline
-                "BackColour=&H80000000,"     # semi-transparent background
-                "BorderStyle=3,"             # box background style
-                "Outline=2,"
-                "Shadow=0,"
-                "Alignment=2,"              # bottom center
-                "MarginV=40"
+                seg_text = " ".join(w["word"] for w in words) if words else seg.text.strip()
+                whisper_segs.append({"id": i, "start": rel_start, "end": rel_end,
+                                     "text": seg_text, "words": words})
+            whisper_json_path.write_text(
+                _json.dumps({"text": " ".join(s["text"] for s in whisper_segs),
+                             "segments": whisper_segs}, ensure_ascii=False),
+                encoding="utf-8"
             )
+            print(f"[subtitles] wrote whisper JSON: {len(whisper_segs)} segments")
 
-            rc, err = await run_ffmpeg([
-                "-i", str(cropped_path),
-                "-vf", f"subtitles='{srt_escaped}':force_style='{subtitle_style}'",
-                "-c:v", "libx264",
-                "-c:a", "aac",
-                "-preset", "fast",
-                str(final_path)
-            ])
+            # Locate the template folder — sits next to video_editor_api.py
+            import sys
+            from pathlib import Path as _Path
+            template_dir = Path(__file__).parent / "editai_template"
 
-            if rc != 0:
-                # Subtitles failed — fall back to no subtitles
-                print(f"Subtitle burn failed, falling back: {err[-200:]}")
-                import shutil
-                shutil.copy(cropped_path, final_path)
-                update("כתוביות נכשלו — שמור ללא כתוביות", 90)
-            else:
+            # Find pycaps executable next to python in the venv
+            pycaps_exe = _Path(sys.executable).parent / "pycaps"
+            if not pycaps_exe.exists():
+                pycaps_exe = _Path(sys.executable).parent / "pycaps.exe"  # Windows
+            if not pycaps_exe.exists():
+                import shutil as _shutil
+                found = _shutil.which("pycaps")
+                pycaps_exe = _Path(found) if found else None
+
+            if pycaps_exe is None:
+                raise FileNotFoundError("pycaps executable not found — is it installed?")
+
+            pycaps_cmd = [
+                str(pycaps_exe), "render",
+                "--input",             str(cropped_path),
+                "--output",            str(final_path),
+                "--transcript",        str(whisper_json_path),
+                "--transcript-format", "whisper_json",
+                "--template",          str(template_dir),
+                "--verbose",
+            ]
+
+            print(f"[subtitles] running pycaps: {' '.join(pycaps_cmd)}")
+
+            proc = await asyncio.create_subprocess_exec(
+                *pycaps_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            rc = proc.returncode
+
+            stdout_text = stdout.decode(errors="replace")
+            err_text = stderr.decode(errors="replace")
+            print(f"[subtitles] pycaps exit code: {rc}")
+            if stdout_text.strip():
+                print(f"[subtitles] pycaps stdout: {stdout_text[-500:]}")
+            if err_text.strip():
+                print(f"[subtitles] pycaps stderr: {err_text[-500:]}")
+
+            # Check if pycaps actually created the output file
+            if rc == 0 and final_path.exists() and final_path.stat().st_size > 1000:
                 update("כתוביות נצרבו ✓", 90)
+            else:
+                if rc == 0:
+                    print(f"[subtitles] pycaps returned 0 but output missing or empty: {final_path}")
+                print("[subtitles] falling back to FFmpeg...")
+                vid_w, vid_h = await get_video_dimensions(cropped_path)
+                if vid_w == 0: vid_w, vid_h = 1080, 1920
+                margin_side   = int(vid_w * 0.10)
+                margin_bottom = int(vid_h * 0.06)
+                font_size     = max(12, int(vid_h * 0.022))
+                srt_escaped = str(srt_path).replace("\\", "/").replace(":", "\\:")
+                subtitle_style = (
+                    f"FontName=Arial,FontSize={font_size},Bold=1,"
+                    f"PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
+                    f"BorderStyle=1,Outline=2,Shadow=0,"
+                    f"Alignment=2,MarginL={margin_side},MarginR={margin_side},MarginV={margin_bottom}"
+                )
+                rc2, _ = await run_ffmpeg([
+                    "-i", str(cropped_path),
+                    "-vf", f"subtitles='{srt_escaped}':force_style='{subtitle_style}'",
+                    "-c:v", "libx264", "-c:a", "aac", "-preset", "fast",
+                    str(final_path)
+                ])
+                if rc2 != 0:
+                    import shutil
+                    shutil.copy(cropped_path, final_path)
+                    update("כתוביות נכשלו — ללא כתוביות", 90)
+                else:
+                    update("כתוביות נצרבו (FFmpeg) ✓", 90)
 
         else:
             import shutil
@@ -439,7 +521,7 @@ async def run_edit_pipeline(job_id: str, request: EditRequest):
         await asyncio.sleep(0.1)
 
         # ── Cleanup temp files ───────────────────────────────────────────────
-        for f in [cut_path, cropped_path]:
+        for f in [cut_path, cropped_path, OUTPUTS_DIR / f"{job_id}_whisper.json"]:
             try:
                 f.unlink()
             except Exception:

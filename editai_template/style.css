@@ -1,0 +1,53 @@
+/* ── Base word style — applies to ALL states ── */
+.word {
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: #ffffff;
+    text-shadow:
+        -2px -2px 3px rgba(0, 0, 0, 0.95),
+         2px -2px 3px rgba(0, 0, 0, 0.95),
+        -2px  2px 3px rgba(0, 0, 0, 0.95),
+         2px  2px 3px rgba(0, 0, 0, 0.95),
+         0px  2px 5px rgba(0, 0, 0, 0.8);
+    letter-spacing: 0.02em;
+    padding: 1px 3px;
+    opacity: 1;
+}
+
+/* ── Words not yet spoken — fully visible, white ── */
+.word-not-narrated-yet {
+    color: #ffffff;
+    opacity: 1;
+}
+
+/* ── Word currently being spoken — yellow highlight ── */
+.word-being-narrated {
+    color: #2c29f3;
+    opacity: 1;
+}
+
+/* ── Words already spoken — slightly dimmed so current word stands out ── */
+.word-already-narrated {
+    color: #cccccc;
+    opacity: 1;
+}
+
+/* ── Entire line states — keep all words visible regardless of line state ── */
+.line-not-narrated-yet .word,
+.line-already-narrated .word {
+    color: #ffffff;
+    opacity: 1;
+}
+
+/* ── Line container ── */
+.line {
+    text-align: center;
+    direction: rtl;
+}
+
+/* ── Segment container ── */
+.segment {
+    text-align: center;
+    direction: rtl;
+}

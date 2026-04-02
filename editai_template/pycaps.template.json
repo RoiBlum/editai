@@ -1,0 +1,18 @@
+{
+  "css": "style.css",
+  "layout": {
+    "max_width_ratio": 0.80,
+    "max_number_of_lines": 2,
+    "vertical_align": {
+      "align": "bottom",
+      "offset": -0.1
+    }
+  },
+  "splitters": [
+    {
+      "type": "limit_by_chars",
+      "min_chars": 8,
+      "max_chars": 30
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+    "css": "styles.css",
+    "resources": "resources",
+    "animations": [
+        {
+            "type": "fade_in",
+            "when": "narration-starts",
+            "what": "segment"
+        },
+        {
+            "type": "fade_out",
+            "when": "narration-ends",
+            "what": "segment"
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la c:/Users/PC/Desktop/EditAI/outputs/*.srt)",
+      "Bash(find C:UsersPCDesktopEditAIvenvLibsite-packages -type d -name *pycaps*)",
+      "Bash(venv/Scripts/python.exe -c \"import playwright; print\\(''''playwright OK''''\\)\")",
+      "Bash(venv/Scripts/python.exe -m playwright install --dry-run)",
+      "Bash(/dev/null cat:*)",
+      "Bash(/dev/null echo:*)",
+      "Bash(venv/Scripts/python.exe -c \"import pyannote.audio; print\\(''pyannote OK'', pyannote.audio.__version__\\)\")",
+      "Bash(venv/Scripts/python.exe -c \"import soundfile; print\\(''soundfile OK'', soundfile.__version__\\)\")",
+      "Bash(venv/Scripts/python.exe -c \"import torch; print\\(''torch OK'', torch.__version__, ''cuda:'', torch.cuda.is_available\\(\\)\\)\")"
+    ]
+  }
+}

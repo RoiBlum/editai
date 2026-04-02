@@ -1,57 +1,84 @@
 import re
 
 
-def chunk_transcript(text: str, chunk_size: int = 1200):
+def chunk_transcript(text: str, min_seconds: float = 30, max_seconds: float = 60):
     """
-    Split transcript into chunks, preserving real timestamps.
+    Split transcript into chunks by TIME duration, not character count.
     Each transcript line looks like:
-      [14.2s --> 28.5s] some text here
-    Each chunk gets the start time of its first line and end time of its last line.
-    """
-    chunks  = []
-    lines   = text.strip().split("\n")
+      [14.2s --> 28.5s] Voice 1: some text here
 
-    current_text  = ""
+    A new chunk starts when:
+    - The chunk has hit max_seconds duration, OR
+    - A natural speaker-change boundary is reached after min_seconds
+
+    Each chunk carries start_time and end_time for the video editor.
+    """
+    lines   = text.strip().split("\n")
+    chunks  = []
+    index   = 0
+
+    current_lines = []
     current_start = None
     current_end   = None
-    index         = 0
+    prev_speaker  = None
 
     for line in lines:
         line = line.strip()
         if not line:
             continue
 
-        # Parse timestamp from line like [14.2s --> 28.5s] text
         match = re.match(r'\[(\d+\.?\d*)s\s*-->\s*(\d+\.?\d*)s\]\s*(.*)', line)
-        if match:
-            seg_start = float(match.group(1))
-            seg_end   = float(match.group(2))
+        if not match:
+            continue
 
-            if current_start is None:
-                current_start = seg_start
-            current_end = seg_end
+        seg_start = float(match.group(1))
+        seg_end   = float(match.group(2))
+        seg_text  = match.group(3)
 
-        current_text += line + "\n"
+        # Detect speaker from "Voice N: text"
+        speaker_match = re.match(r'(Voice \d+):\s*(.*)', seg_text)
+        curr_speaker  = speaker_match.group(1) if speaker_match else None
 
-        if len(current_text) >= chunk_size:
+        if current_start is None:
+            current_start = seg_start
+
+        current_lines.append(line)
+        current_end = seg_end
+        duration    = current_end - current_start
+
+        # Commit chunk if we hit max duration
+        over_max = duration >= max_seconds
+
+        # Commit at a speaker-change boundary after min_seconds
+        speaker_changed = (curr_speaker is not None and
+                           prev_speaker is not None and
+                           curr_speaker != prev_speaker)
+        past_min = duration >= min_seconds
+        natural_break = past_min and speaker_changed
+
+        if over_max or natural_break:
             chunks.append({
                 "index":      index,
-                "text":       current_text.strip(),
-                "start_time": current_start if current_start is not None else 0.0,
-                "end_time":   current_end   if current_end   is not None else 0.0,
+                "text":       "\n".join(current_lines),
+                "start_time": current_start,
+                "end_time":   current_end,
             })
-            index        += 1
-            current_text  = ""
-            current_start = None
-            current_end   = None
+            index         += 1
+            current_lines  = []
+            current_start  = None
+            current_end    = None
 
-    # Last chunk
-    if current_text.strip():
-        chunks.append({
-            "index":      index,
-            "text":       current_text.strip(),
-            "start_time": current_start if current_start is not None else 0.0,
-            "end_time":   current_end   if current_end   is not None else 0.0,
-        })
+        prev_speaker = curr_speaker
+
+    # Last chunk — only keep if long enough to be a real clip
+    if current_lines and current_end and current_start:
+        duration = current_end - current_start
+        if duration >= min_seconds * 0.6:  # allow last chunk to be 60% of min
+            chunks.append({
+                "index":      index,
+                "text":       "\n".join(current_lines),
+                "start_time": current_start,
+                "end_time":   current_end,
+            })
 
     return chunks
