@@ -10,7 +10,8 @@ class ClipStrategy(BaseModel):
     max_clip_seconds: int
     require_hook: bool
     custom_prompt: Optional[str] = None
-    user_id: Optional[str] = "default"
+    user_id:  Optional[str] = "default"
+    video_id: Optional[str] = None
 
 
 class TranscriptRequest(BaseModel):
@@ -39,3 +40,12 @@ class FeedbackRequest(BaseModel):
     middle_comment:  Optional[str] = None
     end_comment:     Optional[str] = None
     message_comment: Optional[str] = None
+
+class SaveTranscriptRequest(BaseModel):
+    client_id:    str
+    video_id:     str
+    filename:     str          = ""
+    duration_sec: int          = 0
+    speakers:     list         = []
+    full_text:    str
+    raw_segments: list         = []

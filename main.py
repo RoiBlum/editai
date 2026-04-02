@@ -1,12 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from models import TranscriptRequest, FeedbackRequest
+from models import TranscriptRequest, FeedbackRequest, SaveTranscriptRequest
 from clip_selector import select_clips
 from feedback_store import save_feedback, get_feedback_stats, get_learned_weights
+from transcript_store import (
+    get_or_create_client, list_clients, get_client,
+    save_transcript, get_client_transcripts
+)
+from component_extractor import extract_and_store
 
 app = FastAPI()
 
-# Allow the HTML file to call the API from the browser
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,11 +19,15 @@ app.add_middleware(
 )
 
 
+# ── Clip selection ─────────────────────────────────────────────────────────────
+
 @app.post("/select-clips")
 def select_clips_endpoint(request: TranscriptRequest):
     clips = select_clips(request.transcript, request.strategy)
     return {"clips": clips}
 
+
+# ── Feedback ───────────────────────────────────────────────────────────────────
 
 @app.post("/feedback")
 def feedback_endpoint(request: FeedbackRequest):
@@ -43,18 +51,90 @@ def feedback_endpoint(request: FeedbackRequest):
         end_comment=request.end_comment,
         message_comment=request.message_comment,
     )
-    stats = get_feedback_stats(request.user_id)
+    stats   = get_feedback_stats(request.user_id)
     weights = get_learned_weights(request.user_id)
-    return {
-        "saved": True,
-        "stats": stats,
-        "current_weights": weights
-    }
+    return {"saved": True, "stats": stats, "current_weights": weights}
 
 
 @app.get("/feedback/stats/{user_id}")
 def feedback_stats(user_id: str):
     return {
-        "stats": get_feedback_stats(user_id),
+        "stats":   get_feedback_stats(user_id),
         "weights": get_learned_weights(user_id)
     }
+
+
+# ── Clients ────────────────────────────────────────────────────────────────────
+
+@app.get("/clients")
+def get_clients():
+    """List all clients."""
+    return {"clients": list_clients()}
+
+
+@app.get("/clients/{client_id}")
+def get_client_endpoint(client_id: str):
+    """Get a single client with their transcript history."""
+    client = get_client(client_id)
+    if not client:
+        return {"error": "Client not found"}
+    transcripts = get_client_transcripts(client_id)
+    return {"client": client, "transcripts": transcripts}
+
+
+@app.post("/clients")
+def create_client(body: dict):
+    """Create or get a client."""
+    client_id = body.get("client_id", "").strip()
+    name      = body.get("name", "").strip()
+    if not client_id:
+        return {"error": "client_id is required"}
+    client = get_or_create_client(client_id, name)
+    return {"client": client}
+
+
+# ── Transcripts ────────────────────────────────────────────────────────────────
+
+@app.post("/transcripts/save")
+async def save_transcript_endpoint(
+    request: SaveTranscriptRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Called by the frontend after transcription completes.
+    Saves the transcript and triggers background component extraction.
+    """
+    # Ensure client exists
+    get_or_create_client(request.client_id)
+
+    # Save transcript
+    transcript_id = save_transcript(
+        client_id=request.client_id,
+        video_id=request.video_id,
+        filename=request.filename,
+        duration_sec=request.duration_sec,
+        speakers=request.speakers,
+        full_text=request.full_text,
+        raw_segments=request.raw_segments,
+    )
+
+    # Extract components in background (takes 30-60 seconds, don't block)
+    background_tasks.add_task(
+        extract_and_store,
+        client_id=request.client_id,
+        video_id=request.video_id,
+        transcript_id=transcript_id,
+        full_text=request.full_text,
+    )
+
+    return {
+        "saved":          True,
+        "transcript_id":  transcript_id,
+        "extracting":     True,
+        "message":        "Transcript saved. Component extraction running in background."
+    }
+
+
+@app.get("/transcripts/{client_id}")
+def get_transcripts(client_id: str):
+    return {"transcripts": get_client_transcripts(client_id)}

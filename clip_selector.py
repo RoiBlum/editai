@@ -2,6 +2,7 @@ import json
 from openai_client import client
 from chunker import chunk_transcript
 from feedback_store import build_examples_block, get_learned_weights, DEFAULT_WEIGHTS
+from hook_finder import find_matching_hooks, find_matching_conclusions
 
 
 SCORING_SYSTEM_PROMPT = """You are an expert at selecting viral Hebrew podcast clips for social media.
@@ -156,22 +157,56 @@ def select_clips(transcript: str, strategy) -> list:
         start_time   = chunk.get("start_time", 0.0)
         end_time     = chunk.get("end_time",   0.0)
 
+        # ── Hook/conclusion suggestions from vector DB ────────────────────
+        suggested_hooks       = []
+        suggested_conclusions = []
+        video_id              = getattr(strategy, 'video_id', None)
+
+        hook_score = scores.get("hook_strength", 0)
+        end_score  = scores.get("completeness", 0)
+
+        # If content is good but hook is weak → search past hooks
+        if not disqualified and final_score >= 5.0 and hook_score <= 5:
+            try:
+                suggested_hooks = find_matching_hooks(
+                    client_id=user_id,
+                    clip_text=chunk["text"],
+                    exclude_video=video_id,
+                    top_k=2,
+                )
+            except Exception as e:
+                print(f"  Hook search failed: {e}")
+
+        # If content is good but ending is weak → search past conclusions
+        if not disqualified and final_score >= 5.0 and end_score <= 5:
+            try:
+                suggested_conclusions = find_matching_conclusions(
+                    client_id=user_id,
+                    clip_text=chunk["text"],
+                    exclude_video=video_id,
+                    top_k=2,
+                )
+            except Exception as e:
+                print(f"  Conclusion search failed: {e}")
+
         result = {
-            "chunk_index":       chunk["index"],
-            "text":              chunk["text"],
-            "scores":            scores,
-            "final_score":       final_score,
-            "disqualified":      disqualified,
-            "disqualify_reason": analysis.get("disqualify_reason", ""),
-            "clip_type":         analysis.get("clip_type", ""),
-            "speaker_dynamic":   analysis.get("speaker_dynamic", ""),
-            "best_quote":        analysis.get("best_quote", ""),
-            "hook_sentence":     analysis.get("hook_sentence", ""),
-            "reason":            analysis.get("reason", ""),
-            "start_time":        start_time,
-            "end_time":          end_time,
-            "score":             round(final_score),
-            "contains_hook":     scores.get("hook_strength", 0) >= 6,
+            "chunk_index":            chunk["index"],
+            "text":                   chunk["text"],
+            "scores":                 scores,
+            "final_score":            final_score,
+            "disqualified":           disqualified,
+            "disqualify_reason":      analysis.get("disqualify_reason", ""),
+            "clip_type":              analysis.get("clip_type", ""),
+            "speaker_dynamic":        analysis.get("speaker_dynamic", ""),
+            "best_quote":             analysis.get("best_quote", ""),
+            "hook_sentence":          analysis.get("hook_sentence", ""),
+            "reason":                 analysis.get("reason", ""),
+            "start_time":             start_time,
+            "end_time":               end_time,
+            "score":                  round(final_score),
+            "contains_hook":          scores.get("hook_strength", 0) >= 6,
+            "suggested_hooks":        suggested_hooks,
+            "suggested_conclusions":  suggested_conclusions,
         }
 
         status = "DISQ" if disqualified else f"score={final_score:.1f}"

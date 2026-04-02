@@ -247,6 +247,37 @@ header{border-bottom:1px solid var(--border);padding:16px 40px;display:flex;alig
 
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 @media(max-width:900px){.mode-content{grid-template-columns:1fr}.panel{position:static}header{padding:14px 18px}.mode-bar{padding:0 16px}.mode-tab{padding:12px 14px;font-size:12px}.mode-content{padding:20px 16px}}
+
+/* ── Client modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:600;display:none;align-items:center;justify-content:center;padding:24px}
+.modal-overlay.visible{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:100%;max-width:420px;display:flex;flex-direction:column;gap:16px}
+.modal-title{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--accent);font-weight:600}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+.modal-btn{padding:8px 20px;border-radius:8px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none}
+.modal-btn.primary{background:var(--accent);color:#000}
+.modal-btn.primary:hover{background:#f4ff80}
+.modal-btn.secondary{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+
+/* ── Suggested hooks / conclusions ── */
+.suggestions-block{background:rgba(71,255,212,.05);border:1px solid rgba(71,255,212,.2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.suggestions-title{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--accent2)}
+.suggestion-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 13px;display:flex;flex-direction:column;gap:5px}
+.suggestion-text{font-size:13px;color:var(--text);direction:rtl;line-height:1.6}
+.suggestion-meta{display:flex;gap:8px;align-items:center}
+.suggestion-time{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2)}
+.suggestion-why{font-size:11px;color:var(--muted);direction:ltr}
+.suggestion-sim{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;border-radius:100px;background:rgba(71,255,212,.1);color:var(--accent2)}
+
+/* ── Speaker badge ── */
+.speaker-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:100px;background:rgba(164,120,255,.15);color:#a478ff;border:1px solid rgba(164,120,255,.25)}
+
+/* ── Client info bar ── */
+.client-info-bar{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.client-info-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.client-info-value{font-size:13px;color:var(--text)}
+.client-info-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 8px;border-radius:100px;background:rgba(232,255,71,.08);color:var(--accent);border:1px solid rgba(232,255,71,.2)}
+
 </style>
 </head>
 <body>
@@ -255,8 +286,11 @@ header{border-bottom:1px solid var(--border);padding:16px 40px;display:flex;alig
   <div class="logo">Edit<span>AI</span></div>
   <div class="header-right">
     <div class="user-field">
-      <label>משתמש</label>
-      <input type="text" id="userId" value="default" placeholder="user id">
+      <label>לקוח</label>
+      <select id="userId" onchange="onClientChange(this.value)">
+        <option value="default">default</option>
+      </select>
+      <button onclick="showNewClientModal()" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--accent);font-family:IBM Plex Mono,monospace;font-size:11px;cursor:pointer">+ לקוח</button>
     </div>
     <div class="status-pill">
       <div class="status-dot" id="statusDot"></div>
@@ -424,6 +458,24 @@ header{border-bottom:1px solid var(--border);padding:16px 40px;display:flex;alig
   </div>
 </div>
 
+
+<!-- New Client Modal -->
+<div class="modal-overlay" id="newClientModal">
+  <div class="modal-box">
+    <div class="modal-title">➕ לקוח חדש</div>
+    <div class="field"><label>מזהה לקוח (באנגלית, ללא רווחים)</label>
+      <input type="text" id="newClientId" placeholder="adi_realestate" style="direction:ltr">
+    </div>
+    <div class="field"><label>שם תצוגה</label>
+      <input type="text" id="newClientName" placeholder="אדי - נדלן">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="hideNewClientModal()">ביטול</button>
+      <button class="modal-btn primary" onclick="createClient()">צור לקוח</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API            = 'https://editai-production-71fc.up.railway.app';
 const TRANSCRIBE_API = 'http://127.0.0.1:8001';
@@ -554,6 +606,7 @@ function renderClips(containerId,ns,clips,videoId,segments){
         <div class="clip-left">
           <span class="clip-num">קליפ ${i+1}</span>${timeLabel}
           ${scores.hook_strength>=6?'<span class="hook-badge">✦ HOOK</span>':''}
+          ${clip.clip_type?`<span class="speaker-badge">${clip.clip_type==='dialogue'?'💬 דיאלוג':clip.clip_type==='story'?'📖 סיפור':'🎤 מונולוג'}</span>`:''}
         </div>
         <div class="final-score">
           <span class="final-score-num" style="color:${scoreColor(fs)}">${typeof fs==='number'?fs.toFixed(1):fs}</span>
@@ -562,8 +615,10 @@ function renderClips(containerId,ns,clips,videoId,segments){
       </div>
       <div class="clip-body">
         <div class="dims-grid">${dimBars}</div>
+        ${clip.speaker_dynamic?`<div class="clip-reason" style="border-right-color:var(--accent2);color:var(--accent2)">💬 ${clip.speaker_dynamic}</div>`:''}
         ${clip.reason?`<div class="clip-reason">${clip.reason}</div>`:''}
         ${quote}
+        ${buildSuggestionsHTML(clip)}
         <div class="toggle-row" onclick="toggleText(this)">
           <span class="toggle-label">טקסט מלא</span><span class="toggle-arrow">▼</span>
         </div>
@@ -668,10 +723,19 @@ async function saveFeedback(uid){
   const state=fbState[uid]||{};
 
   // Helper — get element value by id, return null if empty
-  function val(id){ const el=document.getElementById(id); return el&&el.value.trim()?el.value.trim():null; }
-  function ival(id,def){ const el=document.getElementById(id); return el?parseInt(el.value)||def:def; }
+  function val(id){ const el=document.getElementById(id); if(!el){console.warn('NOT FOUND:',id);}; return el&&el.value.trim()?el.value.trim():null; }
+  function ival(id,def){ const el=document.getElementById(id); if(!el){console.warn('NOT FOUND:',id);}; return el?parseInt(el.value)||def:def; }
 
   const overall=ival('fbslider-overall-'+uid, 5);
+
+  // Debug: log all comment field values before sending
+  console.log('=== Feedback Debug uid:', uid, '===');
+  console.log('overall val:', document.getElementById('fbtxt-overall-'+uid)?.value);
+  console.log('start val:',   document.getElementById('fbtxt-start-'+uid)?.value);
+  console.log('middle val:',  document.getElementById('fbtxt-middle-'+uid)?.value);
+  console.log('end val:',     document.getElementById('fbtxt-end-'+uid)?.value);
+  console.log('msg val:',     document.getElementById('fbtxt-msg-'+uid)?.value);
+
   const payload={
     user_id:userId, clip_text:card.dataset.clipText, scores:JSON.parse(card.dataset.scores||'{}'),
     verdict:overall>=6?'good':'bad', comment:val('fbcomment-'+uid)||'',
@@ -714,6 +778,7 @@ async function runTranscribeOnly(){
     document.getElementById('m1-stepText').textContent='✓ תמלול הושלם';
     document.getElementById('m1-count').textContent=`${(result.segments||[]).length} קטעים | ${Math.round(result.confidence*100)}% ביטחון`;
     setStatus('הושלם ✓',false);
+    saveTranscriptToServer(result, m1File.name);  // save to server in background
     const blob=new Blob([result.transcript],{type:'text/plain;charset=utf-8'});
     const url=URL.createObjectURL(blob);
     document.getElementById('m1-output').innerHTML=`<div class="transcript-output"><div class="transcript-output-header"><span class="transcript-output-title">תמלול מלא</span><span class="transcript-meta">${m1File.name}</span></div><div class="transcript-text">${result.transcript}</div><div class="transcript-actions"><a class="transcript-dl" href="${url}" download="${m1File.name.replace(/\.[^.]+$/,'')}_transcript.txt">⬇ הורד .txt</a></div></div>`;
@@ -730,7 +795,7 @@ async function runClipsOnly(){
   const btn=document.getElementById('m2-btn'); btn.disabled=true; btn.classList.add('loading');
   setStatus('בוחר קליפים...','active');
   try{
-    const res=await fetch(`${API}/select-clips`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:m2Transcript,strategy:{tone:document.getElementById('m2-tone').value,audience:document.getElementById('m2-audience').value,platform:document.getElementById('m2-platform').value,min_clip_seconds:parseInt(document.getElementById('m2-min').value),max_clip_seconds:parseInt(document.getElementById('m2-max').value),require_hook:true,custom_prompt:document.getElementById('m2-prompt').value||null,user_id:document.getElementById('userId').value||'default'}})});
+    const res=await fetch(`${API}/select-clips`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:m2Transcript,strategy:{tone:document.getElementById('m2-tone').value,audience:document.getElementById('m2-audience').value,platform:document.getElementById('m2-platform').value,min_clip_seconds:parseInt(document.getElementById('m2-min').value),max_clip_seconds:parseInt(document.getElementById('m2-max').value),require_hook:true,custom_prompt:document.getElementById('m2-prompt').value||null,user_id:document.getElementById('userId').value||'default',video_id:null}})});
     if(!res.ok)throw new Error(`שגיאה ${res.status}`);
     const data=await res.json();
     document.getElementById('m2-count').textContent=`${data.clips.length} קליפים`;
@@ -755,11 +820,12 @@ async function runFull(){
     setStep('m3-step1','active'); setStatus('מתמלל...','active');
     const result=await streamTranscribe(m3File,{barFill:document.getElementById('m3-barFill'),pct:document.getElementById('m3-pct'),stepText:document.getElementById('m3-step1Text'),live:document.getElementById('m3-live'),barWrap:document.getElementById('m3-barWrap')});
     currentVideoId=result.video_id; currentSegments=result.segments||[];
+    saveTranscriptToServer(result, m3File.name);  // save to server in background
     document.getElementById('m3-fname').textContent=`✓ ${m3File.name} | ${(result.segments||[]).length} קטעים`;
     setStep('m3-step1','done'); document.getElementById('m3-step1Text').textContent='✓ תמלול הושלם';
     setStep('m3-step2','active'); setStatus('בוחר קליפים...','active');
     document.getElementById('m3-step2Text').textContent='שולח ל-AI...';
-    const res=await fetch(`${API}/select-clips`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:result.transcript,strategy:{tone:document.getElementById('m3-tone').value,audience:document.getElementById('m3-audience').value,platform:document.getElementById('m3-platform').value,min_clip_seconds:parseInt(document.getElementById('m3-min').value),max_clip_seconds:parseInt(document.getElementById('m3-max').value),require_hook:true,custom_prompt:document.getElementById('m3-prompt').value||null,user_id:document.getElementById('userId').value||'default'}})});
+    const res=await fetch(`${API}/select-clips`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:result.transcript,strategy:{tone:document.getElementById('m3-tone').value,audience:document.getElementById('m3-audience').value,platform:document.getElementById('m3-platform').value,min_clip_seconds:parseInt(document.getElementById('m3-min').value),max_clip_seconds:parseInt(document.getElementById('m3-max').value),require_hook:true,custom_prompt:document.getElementById('m3-prompt').value||null,user_id:document.getElementById('userId').value||'default',video_id:currentVideoId||null}})});
     if(!res.ok)throw new Error(`שגיאת קליפים ${res.status}`);
     const data=await res.json();
     setStep('m3-step2','done'); document.getElementById('m3-step2Text').textContent=`✓ ${data.clips.length} קליפים נבחרו`;
@@ -863,6 +929,177 @@ function streamEditProgress(jobId){
       .catch(()=>reject(new Error('לא ניתן להתחבר לשרת העריכה.')));
   });
 }
+
+
+// ── Client management ─────────────────────────────────────────────────────────
+let currentClientId = 'default';
+let currentClientData = null;
+
+async function loadClients() {
+  try {
+    const res = await fetch(`${API}/clients`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const select = document.getElementById('userId');
+    const current = select.value;
+    select.innerHTML = '';
+    // Always have default
+    const defOpt = document.createElement('option');
+    defOpt.value = 'default'; defOpt.textContent = 'default';
+    select.appendChild(defOpt);
+    (data.clients || []).forEach(c => {
+      if (c.client_id === 'default') return;
+      const opt = document.createElement('option');
+      opt.value = c.client_id;
+      opt.textContent = c.name || c.client_id;
+      select.appendChild(opt);
+    });
+    // Restore selection
+    if (current) select.value = current;
+    onClientChange(select.value);
+  } catch(e) { console.warn('Could not load clients:', e); }
+}
+
+async function onClientChange(clientId) {
+  currentClientId = clientId || 'default';
+  currentClientData = null;
+  if (clientId && clientId !== 'default') {
+    try {
+      const res = await fetch(`${API}/clients/${clientId}`);
+      if (res.ok) {
+        const data = await res.json();
+        currentClientData = data.client;
+        showClientInfoBar(data.client);
+      }
+    } catch(e) {}
+  } else {
+    hideClientInfoBar();
+  }
+}
+
+function showClientInfoBar(client) {
+  const existing = document.getElementById('clientInfoBar');
+  if (existing) existing.remove();
+  if (!client || !client.main_topics?.length) return;
+  const bar = document.createElement('div');
+  bar.id = 'clientInfoBar';
+  bar.className = 'client-info-bar';
+  bar.style.cssText = 'margin:10px 40px 0;';
+  const topics = (client.main_topics || []).map(t => `<span class="client-info-tag">${t}</span>`).join(' ');
+  bar.innerHTML = `
+    <span class="client-info-label">פרופיל לקוח</span>
+    <span class="client-info-value">${client.name || client.client_id}</span>
+    ${client.tone ? `<span class="client-info-value" style="color:var(--muted)">| ${client.tone}</span>` : ''}
+    ${topics}
+    <span class="client-info-value" style="color:var(--muted);margin-right:auto">${client.total_videos || 0} סרטונים</span>
+  `;
+  document.querySelector('.mode-bar').insertAdjacentElement('afterend', bar);
+}
+
+function hideClientInfoBar() {
+  const el = document.getElementById('clientInfoBar');
+  if (el) el.remove();
+}
+
+function showNewClientModal() {
+  document.getElementById('newClientModal').classList.add('visible');
+  document.getElementById('newClientId').focus();
+}
+function hideNewClientModal() {
+  document.getElementById('newClientModal').classList.remove('visible');
+}
+
+async function createClient() {
+  const clientId = document.getElementById('newClientId').value.trim().replace(/\s+/g, '_');
+  const name     = document.getElementById('newClientName').value.trim();
+  if (!clientId) { alert('חובה להזין מזהה לקוח'); return; }
+  try {
+    const res = await fetch(`${API}/clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId, name: name || clientId })
+    });
+    if (!res.ok) throw new Error(`שגיאה ${res.status}`);
+    hideNewClientModal();
+    document.getElementById('newClientId').value = '';
+    document.getElementById('newClientName').value = '';
+    await loadClients();
+    document.getElementById('userId').value = clientId;
+    onClientChange(clientId);
+  } catch(e) { alert('שגיאה ביצירת לקוח: ' + e.message); }
+}
+
+// ── Save transcript to Railway after transcription ────────────────────────────
+async function saveTranscriptToServer(result, filename) {
+  const clientId = document.getElementById('userId').value || 'default';
+  try {
+    const payload = {
+      client_id:    clientId,
+      video_id:     result.video_id || '',
+      filename:     filename || '',
+      duration_sec: result.duration || 0,
+      speakers:     result.speakers || [],
+      full_text:    result.transcript || '',
+      raw_segments: result.segments  || [],
+    };
+    const res = await fetch(`${API}/transcripts/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      console.log('[transcript] saved id=' + data.transcript_id + ', extracting components in background');
+    }
+  } catch(e) {
+    console.warn('[transcript] save failed (non-critical):', e.message);
+  }
+}
+
+// ── Build suggested hooks/conclusions HTML ────────────────────────────────────
+function buildSuggestionsHTML(clip) {
+  const hooks       = clip.suggested_hooks       || [];
+  const conclusions = clip.suggested_conclusions || [];
+  if (!hooks.length && !conclusions.length) return '';
+
+  let html = '';
+
+  if (hooks.length) {
+    const items = hooks.map(h => {
+      const sim  = h.similarity ? `<span class="suggestion-sim">${Math.round(h.similarity*100)}% התאמה</span>` : '';
+      const time = h.start_time ? `<span class="suggestion-time">${fmtSec(h.start_time)}–${fmtSec(h.end_time)}</span>` : '';
+      const why  = h.metadata?.why_strong ? `<span class="suggestion-why">${h.metadata.why_strong}</span>` : '';
+      return `<div class="suggestion-card">
+        <div class="suggestion-text">${h.text}</div>
+        <div class="suggestion-meta">${time}${sim}${why}</div>
+      </div>`;
+    }).join('');
+    html += `<div class="suggestions-block">
+      <div class="suggestions-title">⚡ פתיחות חזקות מסרטונים קודמים</div>
+      ${items}
+    </div>`;
+  }
+
+  if (conclusions.length) {
+    const items = conclusions.map(c => {
+      const sim  = c.similarity ? `<span class="suggestion-sim">${Math.round(c.similarity*100)}% התאמה</span>` : '';
+      const time = c.start_time ? `<span class="suggestion-time">${fmtSec(c.start_time)}–${fmtSec(c.end_time)}</span>` : '';
+      return `<div class="suggestion-card">
+        <div class="suggestion-text">${c.text}</div>
+        <div class="suggestion-meta">${time}${sim}</div>
+      </div>`;
+    }).join('');
+    html += `<div class="suggestions-block" style="background:rgba(232,255,71,.04);border-color:rgba(232,255,71,.2);margin-top:8px">
+      <div class="suggestions-title" style="color:var(--accent)">🎯 סיומים מתאימים מסרטונים קודמים</div>
+      ${items}
+    </div>`;
+  }
+
+  return html;
+}
+
+// Load clients on startup
+loadClients();
 
 function showEditorErr(msg){const el=document.getElementById('editorError');el.textContent=msg;el.classList.add('visible');}
 function showErr(errId,textId,msg){document.getElementById(textId).textContent=msg;document.getElementById(errId).classList.add('visible');}
