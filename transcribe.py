@@ -176,33 +176,38 @@ async def transcribe(file: UploadFile = File(...)):
                     loop = asyncio.get_event_loop()
 
                     def run_diarization():
-                        # soundfile cannot read MP4/MOV — extract audio to a temp WAV
-                        # first via FFmpeg, then load with soundfile into memory so
-                        # pyannote never needs torchcodec (which is broken on this machine).
+                        # Load audio in-memory to avoid torchcodec/FFmpeg DLL issues on Windows.
+                        # pyannote accepts {'waveform': (channels, time) tensor, 'sample_rate': int}
                         import soundfile as sf
                         import torch
-                        import tempfile, subprocess, os as _os
-
-                        fd, tmp_wav = tempfile.mkstemp(suffix=".wav")
-                        _os.close(fd)
-                        try:
-                            subprocess.run(
-                                ["ffmpeg", "-y", "-i", str(saved_path),
-                                 "-ac", "1", "-ar", "16000", "-vn", tmp_wav],
-                                check=True, capture_output=True
-                            )
-                            waveform, sample_rate = sf.read(tmp_wav, dtype="float32", always_2d=True)
-                        finally:
-                            try: _os.remove(tmp_wav)
-                            except: pass
-
+                        waveform, sample_rate = sf.read(str(saved_path), dtype="float32", always_2d=True)
                         # soundfile returns (time, channels) — pyannote needs (channels, time)
                         waveform_tensor = torch.from_numpy(waveform.T)
                         audio_input = {"waveform": waveform_tensor, "sample_rate": sample_rate}
                         return diarize_pipeline(audio_input)
 
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                        diarization = await loop.run_in_executor(executor, run_diarization)
+                    # Submit diarization to thread — for long videos takes 5-15 min
+                    # Send keepalive SSE events every 10s so connection doesn't timeout
+                    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                    future = loop.run_in_executor(executor, run_diarization)
+
+                    pulse_pct = 63
+                    start_ts = asyncio.get_event_loop().time()
+                    while not future.done():
+                        await asyncio.sleep(8)
+                        if future.done():
+                            break
+                        pulse_pct = min(pulse_pct + 1, 86)
+                        elapsed = int(asyncio.get_event_loop().time() - start_ts)
+                        mins, secs = divmod(elapsed, 60)
+                        yield sse("status", {
+                            "stage":    "diarizing",
+                            "message":  f"מזהה דוברים... {mins}:{secs:02d} עברו",
+                            "progress": pulse_pct
+                        })
+
+                    diarization = await future
+                    executor.shutdown(wait=False)
 
                     tracks = build_speaker_tracks(diarization)
                     speaker_labels = normalize_speakers(tracks)

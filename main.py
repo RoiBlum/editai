@@ -8,6 +8,7 @@ from transcript_store import (
     save_transcript, get_client_transcripts
 )
 from component_extractor import extract_and_store
+from commentary_processor import process_commentary_recording
 
 app = FastAPI()
 
@@ -138,3 +139,54 @@ async def save_transcript_endpoint(
 @app.get("/transcripts/{client_id}")
 def get_transcripts(client_id: str):
     return {"transcripts": get_client_transcripts(client_id)}
+
+# ── Commentary processing ──────────────────────────────────────────────────────
+
+@app.post("/commentary/process")
+async def process_commentary(body: dict, background_tasks: BackgroundTasks):
+    """
+    Process a commentary recording transcript.
+    The transcript must already have Voice 1 / Voice 2 labels from diarization.
+
+    Body:
+      client_id:     str
+      video_id:      str
+      transcript:    str  — full transcript with Voice N: labels
+      extract_rules: bool — whether to extract scoring rules (default False)
+    """
+    client_id     = body.get("client_id", "default")
+    video_id      = body.get("video_id",  "")
+    transcript    = body.get("transcript", "")
+    extract_rules = body.get("extract_rules", False)
+
+    if not transcript:
+        return {"error": "transcript is required"}
+
+    # Run in background — takes 2-5 minutes for a long recording
+    background_tasks.add_task(
+        process_commentary_recording,
+        transcript=transcript,
+        client_id=client_id,
+        video_id=video_id,
+        extract_rules=extract_rules,
+    )
+
+    return {
+        "started": True,
+        "message": "עיבוד פרשנות התחיל ברקע. ייקח 2-5 דקות.",
+        "client_id": client_id,
+    }
+
+
+@app.get("/commentary/rules/{client_id}")
+def get_scoring_rules(client_id: str):
+    """Return the learned scoring rules for a client."""
+    from transcript_store import get_client
+    client = get_client(client_id)
+    if not client:
+        return {"error": "client not found"}
+    return {
+        "client_id": client_id,
+        "rules": client.get("scoring_rules") or {},
+        "has_rules": bool(client.get("scoring_rules"))
+    }

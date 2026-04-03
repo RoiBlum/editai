@@ -95,10 +95,11 @@ Real frustration, genuine passion, or authentic vulnerability. NOT polished radi
 }"""
 
 
-def score_chunk(chunk_text: str, strategy, weights: dict, examples_block: str) -> dict:
+def score_chunk(chunk_text: str, strategy, weights: dict, examples_block: str, rules_block: str = "") -> dict:
     examples_section = f"\n{examples_block}\n" if examples_block else ""
+    rules_section    = f"\n{rules_block}\n"  if rules_block    else ""
 
-    user_message = f"""{examples_section}
+    user_message = f"""{rules_section}{examples_section}
 ## CONTENT PROFILE
 Tone: {strategy.tone}
 Audience: {strategy.audience}
@@ -129,10 +130,43 @@ def compute_final_score(scores: dict, weights: dict) -> float:
     return round(total, 2)
 
 
+def build_rules_block(client_id: str) -> str:
+    """Load learned scoring rules from the client profile and format for prompt injection."""
+    try:
+        from transcript_store import get_client
+        client = get_client(client_id)
+        if not client or not client.get("scoring_rules"):
+            return ""
+        rules = client["scoring_rules"]
+
+        lines = ["--- LEARNED SCORING RULES FROM EXPERT COMMENTARY ---"]
+        lines.append(f"General taste: {rules.get('general_taste', '')}")
+
+        for rule in rules.get("hook_rules", []):
+            lines.append(f"HOOK: {rule}")
+        for rule in rules.get("disqualify_rules", []):
+            lines.append(f"DISQUALIFY: {rule}")
+        for rule in rules.get("value_density_rules", []):
+            lines.append(f"VALUE: {rule}")
+        for rule in rules.get("emotional_rules", []):
+            lines.append(f"EMOTION: {rule}")
+        for rule in rules.get("completeness_rules", []):
+            lines.append(f"COMPLETE: {rule}")
+        for pattern in rules.get("anti_patterns", []):
+            lines.append(f"AVOID: {pattern}")
+        lines.append("--- END RULES ---")
+        lines.append("Apply these rules when scoring. They override your defaults.")
+        return "\n".join(lines)
+    except Exception as e:
+        print(f"[rules] load failed: {e}")
+        return ""
+
+
 def select_clips(transcript: str, strategy) -> list:
     user_id        = getattr(strategy, 'user_id', 'default') or 'default'
     weights        = get_learned_weights(user_id)
     examples_block = build_examples_block(user_id, n=8)
+    rules_block    = build_rules_block(user_id)
 
     # Chunk by actual time using strategy settings
     min_sec = getattr(strategy, 'min_clip_seconds', 30)
@@ -146,7 +180,7 @@ def select_clips(transcript: str, strategy) -> list:
 
     for chunk in chunks:
         try:
-            analysis = score_chunk(chunk["text"], strategy, weights, examples_block)
+            analysis = score_chunk(chunk["text"], strategy, weights, examples_block, rules_block)
         except Exception as e:
             print(f"  Chunk {chunk['index']} error: {e}")
             continue
